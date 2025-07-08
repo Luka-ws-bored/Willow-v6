@@ -1,0 +1,11 @@
+version: 6.0.0
+
+# Interface mode: 'gui' or 'cli'
+interface_mode: cli
+
+# Active plugins to load at startup
+active_plugins:
+  - color_mood_mapper
+  - bug_buster
+  - sql_sorcerer
+  - prompt_checker
