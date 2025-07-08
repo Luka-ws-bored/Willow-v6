@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""
+Willow v6 - AI Automation Framework
+
+Main entry point for the Willow AI assistant system.
+Handles initialization, plugin loading, and application startup.
+"""
+
+import logging
+import sys
+import os
+from pathlib import Path
+
+# Add the current directory to Python path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+from willow.plugin_loader import load_plugins
+
+
+def setup_logging():
+    """Configure logging for the Willow application."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler('willow.log'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+
+
+def main():
+    """Main entry point for Willow v6."""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Setup logging
+        setup_logging()
+        logger.info("Starting Willow v6 - AI Automation Framework")
+        
+        # Load plugins dynamically
+        logger.info("Loading plugins...")
+        plugins = load_plugins()
+        
+        if plugins:
+            logger.info(f"Successfully loaded {len(plugins)} plugins:")
+            for plugin_name, plugin_module in plugins.items():
+                logger.info(f"  - {plugin_name}: {plugin_module.__name__}")
+        else:
+            logger.info("No plugins loaded")
+        
+        # TODO: Initialize main application components
+        # TODO: Start GUI or CLI interface
+        # TODO: Handle user interactions
+        
+        logger.info("Willow v6 initialization complete")
+        
+        # For now, just print a welcome message
+        print("🌿 Willow v6 - AI Automation Framework")
+        print("Plugin loading system initialized successfully!")
+        print(f"Loaded {len(plugins)} plugins")
+        
+    except Exception as e:
+        logger.error(f"Failed to start Willow: {e}")
+        print(f"Error: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main() 
