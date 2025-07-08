@@ -1,0 +1,25 @@
+Willow v6 - AI Automation Framework
+
+Willow is a sophisticated AI automation framework designed for power users, hackers, and indie agents. It bridges local models, cloud APIs, and GUI workflows into one intelligent system.
+
+Key Features:
+- Rotating API Proxy Support: Seamless fallback between OpenAI, Claude, Gemini, Mistral, and more
+- Multimodal Architecture: Vision, text, and speech input/output support (planned)
+- Local Model Integration: Connect to LM Studio, Ollama, or other local backends
+- Plugin Modules: Add or disable skills like AutoGPT tools, agents, memory, and more
+- Reverse Proxy Ready: Works with reverse-proxied API keys (like OpenRouter, Groq)
+- Structured Prompts & Chaining: Claude-style <thinking> tags, budgeted reasoning, reusable chains
+- Experimental Tools: SQL Sorcerer, Prompt Checker, Bug Buster, Color Mood Mapper, and more
+
+Architecture:
+The system uses a multi-tier routing approach:
+1. Direct plugin processing for specialized tasks
+2. RAG pipeline for knowledge-based queries
+3. Fallback LLM calls for general questions
+
+Installation:
+Python 3.9+ is required. Install dependencies with pip install -r requirements.txt.
+Configure API keys in .env file and adjust settings in config.yaml.
+
+Usage:
+Run python willow.py to start the system. The interface mode (GUI/CLI) can be configured in config.yaml.

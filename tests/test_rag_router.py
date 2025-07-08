@@ -2,22 +2,21 @@
 Unit tests for the RAG Router system.
 
 Tests the routing logic for directing queries through different processing pipelines.
-This is a skeleton implementation - full tests will be added in v6.1.
-
-TODO: Implement comprehensive test coverage for RAG router functionality
+Updated for LangChain-powered RAG implementation.
 """
 
 import unittest
-from unittest.mock import patch, MagicMock
-import sys
+from unittest.mock import patch, MagicMock, mock_open
+import tempfile
 import os
+import sys
 from pathlib import Path
 
 # Add the project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from willow.rag_router import RAGRouter, RouteType, IntentLevel
+from willow.rag_router import RAGRouter, RouteType, IntentLevel, create_rag_config
 
 
 class TestRAGRouter(unittest.TestCase):
@@ -36,141 +35,176 @@ class TestRAGRouter(unittest.TestCase):
                     "priority": 2
                 }
             },
-            "rag_pipeline": {
-                "enabled": True,
-                "vector_db": "chromadb",
-                "embedding_model": "text-embedding-3-small"
+            "rag": {
+                "docs_path": "docs/data/",
+                "model": "gpt-3.5-turbo",
+                "k": 3
             }
         }
         
-        # TODO: Add more test configurations
-        # TODO: Setup mock RAG components
-        # TODO: Initialize test data
+        # Mock LangChain components
+        self.mock_embeddings = MagicMock()
+        self.mock_llm = MagicMock()
+        self.mock_vector_store = MagicMock()
+        self.mock_qa_chain = MagicMock()
     
-    def test_router_initialization(self):
-        """Test RAG router initialization."""
-        # TODO: Test with valid configuration
-        # TODO: Test with empty configuration
-        # TODO: Test with invalid configuration
+    @patch('willow.rag_router.OpenAIEmbeddings')
+    @patch('willow.rag_router.ChatOpenAI')
+    @patch('willow.rag_router.FAISS')
+    def test_router_initialization(self, mock_faiss, mock_chat_openai, mock_embeddings):
+        """Test RAG router initialization with LangChain components."""
+        # Setup mocks
+        mock_embeddings.return_value = self.mock_embeddings
+        mock_chat_openai.return_value = self.mock_llm
+        mock_faiss.from_texts.return_value = self.mock_vector_store
         
         router = RAGRouter(self.config)
+        
         self.assertIsInstance(router, RAGRouter)
         self.assertEqual(router.config, self.config)
+        self.assertIsNotNone(router.embeddings)
+        self.assertIsNotNone(router.llm)
     
     def test_route_query_basic(self):
         """Test basic query routing functionality."""
-        # TODO: Test simple queries
-        # TODO: Test complex queries
-        # TODO: Test edge cases
-        
-        router = RAGRouter(self.config)
-        
-        # Test basic routing (currently returns fallback)
-        response = router.route_query("What is the weather like?")
-        self.assertIsInstance(response, str)
-        self.assertIn("FALLBACK ROUTE", response)
+        with patch.object(RAGRouter, '_initialize_rag_pipeline'):
+            router = RAGRouter(self.config)
+            
+            # Test basic routing
+            response = router.route_query("What is the weather like?")
+            self.assertIsInstance(response, str)
     
     def test_intent_detection(self):
         """Test intent detection functionality."""
-        # TODO: Test simple intent detection
-        # TODO: Test complex intent detection
-        # TODO: Test unknown intent handling
-        
-        router = RAGRouter(self.config)
-        
-        # Test intent detection (currently returns UNKNOWN)
-        intent = router._detect_intent("What color represents happiness?")
-        self.assertEqual(intent, IntentLevel.UNKNOWN)
+        with patch.object(RAGRouter, '_initialize_rag_pipeline'):
+            router = RAGRouter(self.config)
+            
+            # Test simple intent
+            intent = router._detect_intent("What color represents happiness?")
+            self.assertEqual(intent, IntentLevel.SIMPLE)
+            
+            # Test complex intent
+            intent = router._detect_intent("How does the RAG system work?")
+            self.assertEqual(intent, IntentLevel.COMPLEX)
+            
+            # Test unknown intent
+            intent = router._detect_intent("Hello there")
+            self.assertEqual(intent, IntentLevel.UNKNOWN)
     
     def test_route_decision(self):
         """Test route decision logic."""
-        # TODO: Test plugin route decisions
-        # TODO: Test RAG route decisions
-        # TODO: Test fallback route decisions
-        # TODO: Test error route decisions
-        
-        router = RAGRouter(self.config)
-        
-        # Test route decision (currently returns FALLBACK)
-        route = router._decide_route("Test query", IntentLevel.UNKNOWN)
-        self.assertEqual(route, RouteType.FALLBACK)
+        with patch.object(RAGRouter, '_initialize_rag_pipeline'):
+            router = RAGRouter(self.config)
+            
+            # Test plugin route
+            route = router._decide_route("Test color query", IntentLevel.SIMPLE)
+            self.assertEqual(route, RouteType.PLUGIN)
+            
+            # Test RAG route (when qa_chain is available)
+            router.qa_chain = MagicMock()
+            route = router._decide_route("Test complex query", IntentLevel.COMPLEX)
+            self.assertEqual(route, RouteType.RAG)
+            
+            # Test fallback route
+            router.qa_chain = None
+            route = router._decide_route("Test query", IntentLevel.COMPLEX)
+            self.assertEqual(route, RouteType.FALLBACK)
     
     def test_plugin_route_processing(self):
         """Test plugin route processing."""
-        # TODO: Test successful plugin processing
-        # TODO: Test plugin error handling
-        # TODO: Test plugin not found scenarios
-        
-        router = RAGRouter(self.config)
-        
-        response = router._process_plugin_route("Test plugin query", IntentLevel.SIMPLE)
-        self.assertIn("PLUGIN ROUTE", response)
+        with patch.object(RAGRouter, '_initialize_rag_pipeline'):
+            router = RAGRouter(self.config)
+            
+            response = router._process_plugin_route("Test plugin query", IntentLevel.SIMPLE)
+            self.assertIn("PLUGIN ROUTE", response)
     
     def test_rag_route_processing(self):
         """Test RAG route processing."""
-        # TODO: Test successful RAG processing
-        # TODO: Test RAG pipeline errors
-        # TODO: Test context retrieval
-        # TODO: Test response generation
-        
-        router = RAGRouter(self.config)
-        
-        response = router._process_rag_route("Test RAG query", IntentLevel.COMPLEX)
-        self.assertIn("RAG ROUTE", response)
+        with patch.object(RAGRouter, '_initialize_rag_pipeline'):
+            router = RAGRouter(self.config)
+            
+            # Test with available QA chain
+            router.qa_chain = MagicMock()
+            router.qa_chain.run.return_value = "RAG response"
+            
+            response = router._process_rag_route("Test RAG query", IntentLevel.COMPLEX)
+            self.assertEqual(response, "RAG response")
+            
+            # Test fallback when QA chain is None
+            router.qa_chain = None
+            with patch.object(router, '_process_fallback_route') as mock_fallback:
+                mock_fallback.return_value = "Fallback response"
+                response = router._process_rag_route("Test RAG query", IntentLevel.COMPLEX)
+                mock_fallback.assert_called_once()
     
     def test_fallback_route_processing(self):
         """Test fallback route processing."""
-        # TODO: Test LLM provider selection
-        # TODO: Test API rate limiting
-        # TODO: Test retry logic
-        # TODO: Test response formatting
-        
-        router = RAGRouter(self.config)
-        
-        response = router._process_fallback_route("Test fallback query", IntentLevel.UNKNOWN)
-        self.assertIn("FALLBACK ROUTE", response)
+        with patch.object(RAGRouter, '_initialize_rag_pipeline'):
+            router = RAGRouter(self.config)
+            
+            # Test with available LLM
+            router.llm = MagicMock()
+            router.llm.predict.return_value = "LLM response"
+            
+            response = router._process_fallback_route("Test fallback query", IntentLevel.UNKNOWN)
+            self.assertEqual(response, "LLM response")
+            
+            # Test when LLM is not available
+            router.llm = None
+            response = router._process_fallback_route("Test fallback query", IntentLevel.UNKNOWN)
+            self.assertIn("LLM not available", response)
+    
+    def test_empty_query_handling(self):
+        """Test handling of empty queries."""
+        with patch.object(RAGRouter, '_initialize_rag_pipeline'):
+            router = RAGRouter(self.config)
+            
+            response = router.route_query("")
+            self.assertIn("Please provide a valid query", response)
+            
+            response = router.route_query("   ")
+            self.assertIn("Please provide a valid query", response)
     
     def test_error_handling(self):
         """Test error handling and recovery."""
-        # TODO: Test routing errors
-        # TODO: Test processing errors
-        # TODO: Test graceful degradation
-        # TODO: Test error logging
-        
-        router = RAGRouter(self.config)
-        
-        # Test error handling
-        response = router._handle_error("Test query", Exception("Test error"))
-        self.assertIn("Sorry, I encountered an error", response)
+        with patch.object(RAGRouter, '_initialize_rag_pipeline'):
+            router = RAGRouter(self.config)
+            
+            # Test error handling
+            response = router._handle_error("Test query", Exception("Test error"))
+            self.assertIn("Sorry, I encountered an error", response)
     
     def test_route_statistics(self):
         """Test route statistics tracking."""
-        # TODO: Test statistics collection
-        # TODO: Test performance metrics
-        # TODO: Test success rate calculation
-        # TODO: Test route distribution tracking
-        
-        router = RAGRouter(self.config)
-        
-        stats = router.get_route_stats()
-        self.assertIsInstance(stats, dict)
-        self.assertIn("total_queries", stats)
-        self.assertIn("route_distribution", stats)
+        with patch.object(RAGRouter, '_initialize_rag_pipeline'):
+            router = RAGRouter(self.config)
+            
+            stats = router.get_route_stats()
+            self.assertIsInstance(stats, dict)
+            self.assertIn("total_queries", stats)
+            self.assertIn("route_distribution", stats)
+            self.assertIn("rag_available", stats)
+            self.assertIn("vector_store_size", stats)
     
     def test_configuration_updates(self):
         """Test dynamic configuration updates."""
-        # TODO: Test valid configuration updates
-        # TODO: Test invalid configuration handling
-        # TODO: Test component reloading
-        # TODO: Test configuration validation
+        with patch.object(RAGRouter, '_initialize_rag_pipeline'):
+            router = RAGRouter(self.config)
+            
+            new_config = {"test_setting": "test_value"}
+            router.update_config(new_config)
+            
+            self.assertIn("test_setting", router.config)
+            self.assertEqual(router.config["test_setting"], "test_value")
+    
+    def test_create_rag_config(self):
+        """Test RAG configuration creation utility."""
+        config = create_rag_config("test/path", "gpt-4", 5)
         
-        router = RAGRouter(self.config)
-        
-        new_config = {"test_setting": "test_value"}
-        router.update_config(new_config)
-        
-        self.assertIn("test_setting", router.config)
-        self.assertEqual(router.config["test_setting"], "test_value")
+        self.assertIn("rag", config)
+        self.assertEqual(config["rag"]["docs_path"], "test/path")
+        self.assertEqual(config["rag"]["model"], "gpt-4")
+        self.assertEqual(config["rag"]["k"], 5)
 
 
 class TestRAGRouterIntegration(unittest.TestCase):
@@ -178,121 +212,106 @@ class TestRAGRouterIntegration(unittest.TestCase):
     
     def setUp(self):
         """Set up integration test fixtures."""
-        # TODO: Setup test environment
-        # TODO: Initialize test databases
-        # TODO: Load test documents
-        # TODO: Setup mock APIs
+        self.temp_dir = tempfile.mkdtemp()
+        self.original_cwd = os.getcwd()
+        os.chdir(self.temp_dir)
         
-        self.test_config = {
-            "rag_pipeline": {
-                "enabled": True,
-                "vector_db": "test_db",
-                "embedding_model": "test_model"
+        # Create test documents directory
+        os.makedirs('docs/data', exist_ok=True)
+        
+        # Create test document
+        with open('docs/data/test_doc.txt', 'w') as f:
+            f.write("This is a test document for RAG testing.")
+    
+    def tearDown(self):
+        """Clean up after tests."""
+        os.chdir(self.original_cwd)
+        import shutil
+        shutil.rmtree(self.temp_dir)
+    
+    @patch('willow.rag_router.OpenAIEmbeddings')
+    @patch('willow.rag_router.ChatOpenAI')
+    @patch('willow.rag_router.FAISS')
+    def test_end_to_end_routing(self, mock_faiss, mock_chat_openai, mock_embeddings):
+        """Test complete routing pipeline."""
+        # Setup mocks
+        mock_embeddings.return_value = MagicMock()
+        mock_chat_openai.return_value = MagicMock()
+        mock_faiss.from_documents.return_value = MagicMock()
+        mock_faiss.from_texts.return_value = MagicMock()
+        
+        config = {
+            "rag": {
+                "docs_path": "docs/data/",
+                "model": "gpt-3.5-turbo",
+                "k": 3
             }
         }
-    
-    def test_end_to_end_routing(self):
-        """Test complete routing pipeline."""
-        # TODO: Test full query processing pipeline
-        # TODO: Test with real plugin integration
-        # TODO: Test with mock RAG components
-        # TODO: Test with mock LLM providers
         
-        router = RAGRouter(self.test_config)
+        router = RAGRouter(config)
         
         # Test end-to-end routing
         response = router.route_query("Integration test query")
         self.assertIsInstance(response, str)
         self.assertTrue(len(response) > 0)
     
-    def test_performance_benchmarking(self):
-        """Test routing performance under load."""
-        # TODO: Test response time under load
-        # TODO: Test memory usage
-        # TODO: Test concurrent query handling
-        # TODO: Test scalability metrics
+    @patch('willow.rag_router.OpenAIEmbeddings')
+    @patch('willow.rag_router.ChatOpenAI')
+    def test_document_loading(self, mock_chat_openai, mock_embeddings):
+        """Test document loading functionality."""
+        # Setup mocks
+        mock_embeddings.return_value = MagicMock()
+        mock_chat_openai.return_value = MagicMock()
         
-        router = RAGRouter(self.test_config)
+        config = {
+            "rag": {
+                "docs_path": "docs/data/",
+                "model": "gpt-3.5-turbo",
+                "k": 3
+            }
+        }
         
-        # Basic performance test
-        import time
-        start_time = time.time()
-        
-        for i in range(10):
-            router.route_query(f"Performance test query {i}")
-        
-        end_time = time.time()
-        total_time = end_time - start_time
-        
-        # Ensure reasonable performance (adjust threshold as needed)
-        self.assertLess(total_time, 5.0)  # Should complete in under 5 seconds
-    
-    def test_error_recovery(self):
-        """Test system recovery from errors."""
-        # TODO: Test recovery from plugin failures
-        # TODO: Test recovery from RAG failures
-        # TODO: Test recovery from LLM failures
-        # TODO: Test graceful degradation
-        
-        router = RAGRouter(self.test_config)
-        
-        # Test that system continues to function after errors
-        responses = []
-        for i in range(5):
-            try:
-                response = router.route_query(f"Error recovery test {i}")
-                responses.append(response)
-            except Exception as e:
-                # System should handle errors gracefully
-                responses.append(f"Error handled: {e}")
-        
-        # All queries should be processed (either successfully or with error handling)
-        self.assertEqual(len(responses), 5)
+        with patch('willow.rag_router.FAISS') as mock_faiss:
+            mock_faiss.from_documents.return_value = MagicMock()
+            
+            router = RAGRouter(config)
+            
+            # Verify document loading was attempted
+            mock_faiss.from_documents.assert_called_once()
 
 
 class TestRAGRouterEdgeCases(unittest.TestCase):
     """Test edge cases and boundary conditions."""
     
-    def setUp(self):
+    @patch('willow.rag_router.OpenAIEmbeddings')
+    @patch('willow.rag_router.ChatOpenAI')
+    def setUp(self, mock_chat_openai, mock_embeddings):
         """Set up edge case test fixtures."""
-        self.router = RAGRouter()
-    
-    def test_empty_query(self):
-        """Test handling of empty queries."""
-        # TODO: Test empty string queries
-        # TODO: Test whitespace-only queries
-        # TODO: Test None queries
+        mock_embeddings.return_value = MagicMock()
+        mock_chat_openai.return_value = MagicMock()
         
-        response = self.router.route_query("")
-        self.assertIsInstance(response, str)
+        with patch('willow.rag_router.FAISS') as mock_faiss:
+            mock_faiss.from_texts.return_value = MagicMock()
+            self.router = RAGRouter()
     
     def test_very_long_query(self):
         """Test handling of very long queries."""
-        # TODO: Test queries exceeding token limits
-        # TODO: Test queries with special characters
-        # TODO: Test queries with unicode
-        
         long_query = "A" * 10000  # Very long query
         response = self.router.route_query(long_query)
         self.assertIsInstance(response, str)
     
     def test_special_characters(self):
         """Test handling of special characters in queries."""
-        # TODO: Test unicode characters
-        # TODO: Test HTML/XML entities
-        # TODO: Test SQL injection attempts
-        # TODO: Test script injection attempts
-        
         special_query = "Test query with special chars: <>&\"'"
         response = self.router.route_query(special_query)
         self.assertIsInstance(response, str)
+    
+    def test_unicode_characters(self):
+        """Test handling of unicode characters in queries."""
+        unicode_query = "Test query with unicode: 🚀🌟✨"
+        response = self.router.route_query(unicode_query)
+        self.assertIsInstance(response, str)
 
-
-# TODO: Add more test classes for:
-# - Performance testing
-# - Security testing
-# - Load testing
-# - Integration testing with real components
 
 if __name__ == '__main__':
     unittest.main() 

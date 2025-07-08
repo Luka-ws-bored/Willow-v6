@@ -9,3 +9,9 @@ active_plugins:
   - bug_buster
   - sql_sorcerer
   - prompt_checker
+
+# RAG pipeline configuration
+rag:
+  docs_path: "docs/data/"
+  model: "gpt-3.5-turbo"
+  k: 3
