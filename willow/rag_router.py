@@ -15,12 +15,14 @@ from enum import Enum
 # LangChain imports
 from langchain.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
-from langchain.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
+# Import the updated embeddings class
+from langchain_openai import OpenAIEmbeddings
+# Import the OpenRouter model wrapper
+from openrouter import OpenRouter
 
 
 class RouteType(Enum):
@@ -80,17 +82,15 @@ class RAGRouter:
             model_name = rag_config.get('model', 'gpt-3.5-turbo')
             top_k = rag_config.get('k', 3)
             
-            # Initialize embeddings
-            self.embeddings = OpenAIEmbeddings()
-            
-            # Initialize LLM
-            self.llm = ChatOpenAI(
-                model_name=model_name,
-                temperature=0.1
-            )
+            # Initialize embeddings with OpenRouter key if provided
+            api_key = self.config.get("openrouter_api_key") or None
+            self.embeddings = OpenAIEmbeddings(openai_api_key=api_key)
             
             # Load and process documents
             self._load_documents(docs_path)
+            
+            # Initialize LLM with OpenRouter proxy
+            self.llm = OpenRouter(api_key=api_key, model=model_name)
             
             # Initialize QA chain
             self._initialize_chain(top_k)
@@ -99,7 +99,9 @@ class RAGRouter:
             
         except Exception as e:
             self.logger.error(f"Failed to initialize RAG pipeline: {e}")
-            # Continue without RAG - will use fallback
+            # Fallback to direct LLM if needed
+            api_key = self.config.get("openrouter_api_key") or None
+            self.llm = OpenRouter(api_key=api_key, model=model_name)
             self.vector_store = None
             self.qa_chain = None
     
@@ -346,8 +348,8 @@ class RAGRouter:
             if self.llm is None:
                 return "[FALLBACK] LLM not available. Please check your API configuration."
             
-            # Direct LLM call
-            response = self.llm.predict(query)
+            # Direct LLM call using OpenRouter
+            response = self.llm.generate(query)
             
             self.logger.info("Fallback LLM response generated")
             return response

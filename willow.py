@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from willow.interface_router import launch_interface
 from willow.memory import MemoryManager
+from willow.subconscious import Subconscious
 
 
 def setup_logging():
@@ -57,6 +58,11 @@ def main():
         if memory_enabled:
             memory = MemoryManager(memory_path)
             logger.info(f"Memory system initialized with file: {memory_path}")
+        
+        # Initialize Subconscious agent
+        subconscious = Subconscious(memory, config['subconscious']['dream_interval'])
+        if config['subconscious']['enabled']:
+            subconscious.start()
         
         # Launch appropriate interface based on configuration
         logger.info("Launching interface...")
