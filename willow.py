@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from willow.interface_router import launch_interface
 from willow.memory import MemoryManager
 from willow.subconscious import Subconscious
+from willow import validate_environment
 
 
 def setup_logging():
@@ -40,6 +41,9 @@ def main():
         # Setup logging
         setup_logging()
         logger.info("Starting Willow v6 - AI Automation Framework")
+        
+        # Validate environment variables
+        validate_environment()
         
         # Load configuration
         config_path = "config.yaml"

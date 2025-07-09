@@ -24,6 +24,8 @@ from langchain.schema import Document
 from langchain_openai import OpenAIEmbeddings
 # Import OpenAI client for OpenRouter
 from openai import OpenAI
+# Import Gemini provider
+from willow.providers.gemini_provider import GeminiProvider
 
 
 class RouteType(Enum):
@@ -72,23 +74,39 @@ class RAGRouter:
         
         # Build provider clients
         self.providers = []
-        for key_name, cls in [
-            ("openrouter_api_key", OpenAI),  # Using OpenAI client with OpenRouter base URL
-            ("openai_api_key", OpenAI),
-        ]:
-            key = os.getenv(key_name.upper()) or self.config.get(key_name)
-            if key:
-                if key_name == "openrouter_api_key":
-                    # Configure OpenAI client for OpenRouter
-                    client = OpenAI(
-                        api_key=key,
-                        base_url="https://openrouter.ai/api/v1"
-                    )
-                    self.providers.append(("openrouter", client))
-                else:
-                    # Standard OpenAI client
-                    client = OpenAI(api_key=key)
-                    self.providers.append(("openai", client))
+        
+        # Add OpenRouter provider
+        openrouter_key = os.environ.get("OPENROUTER_API_KEY") or self.config.get("openrouter_api_key")
+        if openrouter_key:
+            try:
+                client = OpenAI(
+                    api_key=openrouter_key,
+                    base_url="https://openrouter.ai/api/v1"
+                )
+                self.providers.append(("openrouter", client))
+                self.logger.info("OpenRouter provider initialized")
+            except Exception as e:
+                self.logger.error(f"Failed to initialize OpenRouter provider: {e}")
+        
+        # Add OpenAI provider
+        openai_key = os.environ.get("OPENAI_API_KEY") or self.config.get("openai_api_key")
+        if openai_key:
+            try:
+                client = OpenAI(api_key=openai_key)
+                self.providers.append(("openai", client))
+                self.logger.info("OpenAI provider initialized")
+            except Exception as e:
+                self.logger.error(f"Failed to initialize OpenAI provider: {e}")
+        
+        # Add Gemini provider
+        gemini_key = os.environ.get("GEMINI_API_KEY") or self.config.get("gemini_api_key")
+        if gemini_key:
+            try:
+                gemini_provider = GeminiProvider(api_key=gemini_key)
+                self.providers.append(("gemini", gemini_provider))
+                self.logger.info("Gemini provider initialized")
+            except Exception as e:
+                self.logger.error(f"Failed to initialize Gemini provider: {e}")
         
         # Initialize RAG pipeline
         self._initialize_rag_pipeline()
@@ -105,8 +123,13 @@ class RAGRouter:
             top_k = rag_config.get('k', 3)
             
             # Initialize embeddings with OpenRouter key if provided
-            api_key = os.getenv('OPENROUTER_API_KEY') or self.config.get("openrouter_api_key")
-            self.embeddings = OpenAIEmbeddings(openai_api_key=api_key)
+            api_key = os.environ.get('OPENROUTER_API_KEY') or self.config.get("openrouter_api_key")
+            if api_key:
+                self.embeddings = OpenAIEmbeddings(openai_api_key=api_key)
+                self.logger.info("Embeddings initialized with OpenRouter")
+            else:
+                self.logger.warning("No API key found for embeddings, using fallback")
+                self.embeddings = None
             
             # Load and process documents
             self._load_documents(docs_path)
@@ -122,7 +145,7 @@ class RAGRouter:
         except Exception as e:
             self.logger.error(f"Failed to initialize RAG pipeline: {e}")
             # Fallback to direct LLM if needed
-            api_key = os.getenv('OPENROUTER_API_KEY') or self.config.get("openrouter_api_key")
+            api_key = os.environ.get('OPENROUTER_API_KEY') or self.config.get("openrouter_api_key")
             if api_key:
                 self.openai_client = OpenAI(
                     api_key=api_key,
@@ -380,7 +403,16 @@ class RAGRouter:
         
         def call_provider(name, client):
             try:
-                if hasattr(client, "chat") and hasattr(client.chat, "completions"):
+                if name == "gemini":
+                    # Handle Gemini provider
+                    response = client.chat_completion(
+                        messages=[{"role": "user", "content": query}],
+                        max_tokens=1000,
+                        temperature=0.7
+                    )
+                    return name, response
+                elif hasattr(client, "chat") and hasattr(client.chat, "completions"):
+                    # Handle OpenAI/OpenRouter providers
                     r = client.chat.completions.create(
                         model=self.config.get("rag", {}).get("model", "gpt-3.5-turbo"),
                         messages=[{"role": "user", "content": query}],
