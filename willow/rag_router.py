@@ -13,16 +13,16 @@ from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
 
 # LangChain imports
-from langchain.document_loaders import DirectoryLoader, TextLoader
+from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
 # Import the updated embeddings class
 from langchain_openai import OpenAIEmbeddings
 # Import OpenAI client for OpenRouter
-import openai
+from openai import OpenAI
 
 
 class RouteType(Enum):
@@ -91,8 +91,12 @@ class RAGRouter:
             
             # Initialize OpenAI client with OpenRouter configuration
             if api_key:
-                openai.api_key = api_key
-                openai.api_base = "https://openrouter.ai/api/v1"
+                self.openai_client = OpenAI(
+                    api_key=api_key,
+                    base_url="https://openrouter.ai/api/v1"
+                )
+            else:
+                self.openai_client = None
             
             # Store model name for fallback
             self.model_name = model_name
@@ -107,8 +111,12 @@ class RAGRouter:
             # Fallback to direct LLM if needed
             api_key = self.config.get("openrouter_api_key") or None
             if api_key:
-                openai.api_key = api_key
-                openai.api_base = "https://openrouter.ai/api/v1"
+                self.openai_client = OpenAI(
+                    api_key=api_key,
+                    base_url="https://openrouter.ai/api/v1"
+                )
+            else:
+                self.openai_client = None
             self.model_name = model_name
             self.vector_store = None
             self.qa_chain = None
@@ -353,8 +361,11 @@ class RAGRouter:
             Fallback LLM response
         """
         try:
+            if self.openai_client is None:
+                return "[FALLBACK] LLM not available. Please check your API configuration."
+            
             # Use OpenAI client with OpenRouter
-            response = openai.ChatCompletion.create(
+            response = self.openai_client.chat.completions.create(
                 model=self.model_name,
                 messages=[
                     {"role": "user", "content": query}
