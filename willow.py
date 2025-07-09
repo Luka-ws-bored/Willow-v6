@@ -9,12 +9,14 @@ Handles initialization and interface routing.
 import logging
 import sys
 import os
+import yaml
 from pathlib import Path
 
 # Add the current directory to Python path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
 from willow.interface_router import launch_interface
+from willow.memory import MemoryManager
 
 
 def setup_logging():
@@ -38,9 +40,27 @@ def main():
         setup_logging()
         logger.info("Starting Willow v6 - AI Automation Framework")
         
+        # Load configuration
+        config_path = "config.yaml"
+        if not os.path.exists(config_path):
+            raise FileNotFoundError(f"Configuration file {config_path} not found")
+            
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        # Initialize memory manager
+        memory_config = config.get('memory', {})
+        memory_enabled = memory_config.get('enabled', True)
+        memory_path = memory_config.get('path', 'memory.json')
+        
+        memory = None
+        if memory_enabled:
+            memory = MemoryManager(memory_path)
+            logger.info(f"Memory system initialized with file: {memory_path}")
+        
         # Launch appropriate interface based on configuration
         logger.info("Launching interface...")
-        launch_interface()
+        launch_interface(config, memory)
         
         logger.info("Willow v6 initialization complete")
         
