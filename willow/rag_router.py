@@ -21,8 +21,8 @@ from langchain.prompts import PromptTemplate
 from langchain.schema import Document
 # Import the updated embeddings class
 from langchain_openai import OpenAIEmbeddings
-# Import the OpenRouter model wrapper
-from openrouter import OpenRouter
+# Import OpenAI client for OpenRouter
+import openai
 
 
 class RouteType(Enum):
@@ -89,8 +89,13 @@ class RAGRouter:
             # Load and process documents
             self._load_documents(docs_path)
             
-            # Initialize LLM with OpenRouter proxy
-            self.llm = OpenRouter(api_key=api_key, model=model_name)
+            # Initialize OpenAI client with OpenRouter configuration
+            if api_key:
+                openai.api_key = api_key
+                openai.api_base = "https://openrouter.ai/api/v1"
+            
+            # Store model name for fallback
+            self.model_name = model_name
             
             # Initialize QA chain
             self._initialize_chain(top_k)
@@ -101,7 +106,10 @@ class RAGRouter:
             self.logger.error(f"Failed to initialize RAG pipeline: {e}")
             # Fallback to direct LLM if needed
             api_key = self.config.get("openrouter_api_key") or None
-            self.llm = OpenRouter(api_key=api_key, model=model_name)
+            if api_key:
+                openai.api_key = api_key
+                openai.api_base = "https://openrouter.ai/api/v1"
+            self.model_name = model_name
             self.vector_store = None
             self.qa_chain = None
     
@@ -345,14 +353,19 @@ class RAGRouter:
             Fallback LLM response
         """
         try:
-            if self.llm is None:
-                return "[FALLBACK] LLM not available. Please check your API configuration."
+            # Use OpenAI client with OpenRouter
+            response = openai.ChatCompletion.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "user", "content": query}
+                ],
+                max_tokens=1000,
+                temperature=0.7
+            )
             
-            # Direct LLM call using OpenRouter
-            response = self.llm.generate(query)
-            
+            result = response.choices[0].message.content
             self.logger.info("Fallback LLM response generated")
-            return response
+            return result
             
         except Exception as e:
             self.logger.error(f"Error in fallback processing: {e}")
