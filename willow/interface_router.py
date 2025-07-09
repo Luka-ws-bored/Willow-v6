@@ -35,6 +35,29 @@ def _launch_cli_mode(config, memory):
             output = subconscious.dream()
             print(output)
             continue
+        
+        if user_input.lower() == 'sync':
+            path = input('Path to sync: ').strip()
+            from willow.cloud_sync import CloudSync
+            syncer = CloudSync(config)
+            success = syncer.sync(path)
+            print('Sync', 'succeeded' if success else 'failed')
+            continue
+        
+        if user_input.lower() == 'restore':
+            path = input('Path to restore: ').strip()
+            from willow.cloud_sync import CloudSync
+            syncer = CloudSync(config)
+            success = syncer.restore(path)
+            print('Restore', 'succeeded' if success else 'failed')
+            continue
+        
+        if user_input.lower() == 'list-devices':
+            from willow.cloud_sync import CloudSync
+            syncer = CloudSync(config)
+            devices = syncer.list_devices()
+            print('Devices:', devices)
+            continue
 
         # Route via IntentRouter
         result = intent_router.route(user_input)
