@@ -24,4 +24,11 @@ class Subconscious:
         recent = self.memory.get_recent(10)
         summary = "; ".join([str(entry) for entry in recent])
         logger.info(f"Subconscious dream summary: {summary}")
-        self.memory.add_entry({"event": "dream", "summary": summary}) 
+        self.memory.add_entry({"event": "dream", "summary": summary})
+
+    # New method: manual dream trigger
+    def dream(self) -> str:
+        recent = self.memory.get_recent(10)
+        summary = "; ".join([str(entry) for entry in recent])
+        self.memory.add_entry({"event": "dream_manual", "summary": summary})
+        return f"Dream summary: {summary}" 

@@ -19,13 +19,22 @@ def _launch_cli_mode(config, memory):
     plugins = load_plugins(config.get('config_path', 'config.yaml'))
     rag = RAGRouter(config)
     intent_router = IntentRouter(plugins, rag, memory)
+    
+    # Import Subconscious for dream command
+    from willow.subconscious import Subconscious
+    subconscious = Subconscious(memory, config.get('subconscious', {}).get('dream_interval', 3600))
 
-    logger.info("Starting CLI interaction. Type 'exit' to quit.")
+    logger.info("Starting CLI interaction. Type 'exit' to quit, 'dream' to trigger subconscious.")
     while True:
         user_input = input('> ').strip()
         if user_input.lower() in ('exit', 'quit'):
             logger.info("Exiting CLI loop.")
             break
+        
+        if user_input.lower() == 'dream':
+            output = subconscious.dream()
+            print(output)
+            continue
 
         # Route via IntentRouter
         result = intent_router.route(user_input)
