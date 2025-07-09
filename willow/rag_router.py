@@ -9,6 +9,7 @@ Implements LangChain-powered RAG pipeline with document retrieval and generation
 
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
 
@@ -52,26 +53,47 @@ class RAGRouter:
     4. Error response
     """
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, memory_manager=None):
         """
         Initialize the RAG router.
         
         Args:
             config: Configuration dictionary for routing behavior
+            memory_manager: Memory manager for Subconscious integration
         """
         self.logger = logging.getLogger(__name__)
         self.config = config or {}
+        self.memory = memory_manager
         
         # RAG components
         self.vector_store = None
         self.qa_chain = None
         self.embeddings = None
-        self.llm = None
+        
+        # Build provider clients
+        self.providers = []
+        for key_name, cls in [
+            ("openrouter_api_key", OpenAI),  # Using OpenAI client with OpenRouter base URL
+            ("openai_api_key", OpenAI),
+        ]:
+            key = os.getenv(key_name.upper()) or self.config.get(key_name)
+            if key:
+                if key_name == "openrouter_api_key":
+                    # Configure OpenAI client for OpenRouter
+                    client = OpenAI(
+                        api_key=key,
+                        base_url="https://openrouter.ai/api/v1"
+                    )
+                    self.providers.append(("openrouter", client))
+                else:
+                    # Standard OpenAI client
+                    client = OpenAI(api_key=key)
+                    self.providers.append(("openai", client))
         
         # Initialize RAG pipeline
         self._initialize_rag_pipeline()
         
-        self.logger.info("RAG Router initialized with LangChain pipeline")
+        self.logger.info("RAG Router initialized with parallel providers")
     
     def _initialize_rag_pipeline(self) -> None:
         """Initialize the RAG pipeline components."""
@@ -83,33 +105,24 @@ class RAGRouter:
             top_k = rag_config.get('k', 3)
             
             # Initialize embeddings with OpenRouter key if provided
-            api_key = self.config.get("openrouter_api_key") or None
+            api_key = os.getenv('OPENROUTER_API_KEY') or self.config.get("openrouter_api_key")
             self.embeddings = OpenAIEmbeddings(openai_api_key=api_key)
             
             # Load and process documents
             self._load_documents(docs_path)
             
-            # Initialize OpenAI client with OpenRouter configuration
-            if api_key:
-                self.openai_client = OpenAI(
-                    api_key=api_key,
-                    base_url="https://openrouter.ai/api/v1"
-                )
+            # Build RAG chain off the first provider only
+            if self.providers:
+                primary = self.providers[0][1]
+                self._initialize_chain(top_k, primary, model_name)
+                self.logger.info(f"RAG pipeline initialized with {self.providers[0][0]}")
             else:
-                self.openai_client = None
-            
-            # Store model name for fallback
-            self.model_name = model_name
-            
-            # Initialize QA chain
-            self._initialize_chain(top_k)
-            
-            self.logger.info(f"RAG pipeline initialized with model: {model_name}, top_k: {top_k}")
+                self.qa_chain = None
             
         except Exception as e:
             self.logger.error(f"Failed to initialize RAG pipeline: {e}")
             # Fallback to direct LLM if needed
-            api_key = self.config.get("openrouter_api_key") or None
+            api_key = os.getenv('OPENROUTER_API_KEY') or self.config.get("openrouter_api_key")
             if api_key:
                 self.openai_client = OpenAI(
                     api_key=api_key,
@@ -174,12 +187,14 @@ class RAGRouter:
                 self.embeddings
             )
     
-    def _initialize_chain(self, top_k: int = 3) -> None:
+    def _initialize_chain(self, top_k: int, llm, model_name: str) -> None:
         """
         Initialize the retrieval-based QA chain.
         
         Args:
             top_k: Number of documents to retrieve
+            llm: Language model instance
+            model_name: Model name for logging
         """
         try:
             # Create prompt template
@@ -199,7 +214,7 @@ class RAGRouter:
             
             # Create retrieval QA chain
             self.qa_chain = RetrievalQA.from_chain_type(
-                llm=self.llm,
+                llm=llm,
                 chain_type="stuff",
                 retriever=self.vector_store.as_retriever(search_kwargs={"k": top_k}),
                 chain_type_kwargs={"prompt": prompt}
@@ -336,7 +351,7 @@ class RAGRouter:
         """
         try:
             if self.qa_chain is None:
-                self.logger.warning("RAG chain not available, falling back to direct LLM")
+                self.logger.warning("RAG chain not available, falling back to parallel providers")
                 return self._process_fallback_route(query, intent)
             
             # Get response from RAG chain
@@ -351,36 +366,60 @@ class RAGRouter:
     
     def _process_fallback_route(self, query: str, intent: IntentLevel) -> str:
         """
-        Process query through fallback LLM system.
+        Process query through parallel provider system.
         
         Args:
             query: The user's input query
             intent: Detected intent level
             
         Returns:
-            Fallback LLM response
+            Best response from available providers
         """
-        try:
-            if self.openai_client is None:
-                return "[FALLBACK] LLM not available. Please check your API configuration."
-            
-            # Use OpenAI client with OpenRouter
-            response = self.openai_client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "user", "content": query}
-                ],
-                max_tokens=1000,
-                temperature=0.7
-            )
-            
-            result = response.choices[0].message.content
-            self.logger.info("Fallback LLM response generated")
-            return result
-            
-        except Exception as e:
-            self.logger.error(f"Error in fallback processing: {e}")
-            return f"[FALLBACK ERROR] Unable to process query: {str(e)}"
+        # Run all providers in parallel
+        responses: Dict[str, str] = {}
+        
+        def call_provider(name, client):
+            try:
+                if hasattr(client, "chat") and hasattr(client.chat, "completions"):
+                    r = client.chat.completions.create(
+                        model=self.config.get("rag", {}).get("model", "gpt-3.5-turbo"),
+                        messages=[{"role": "user", "content": query}],
+                        max_tokens=1000,
+                        temperature=0.7
+                    )
+                    return name, r.choices[0].message.content
+                else:
+                    return name, f"[FALLBACK ERROR] {name} client has no chat.completions method"
+            except Exception as e:
+                return name, f"[FALLBACK ERROR] {name} failed: {e}"
+
+        if not self.providers:
+            return "[FALLBACK ERROR] No providers available. Please check your API configuration."
+
+        with ThreadPoolExecutor(max_workers=len(self.providers)) as executor:
+            futures = [executor.submit(call_provider, name, client) for name, client in self.providers]
+            for future in as_completed(futures):
+                name, output = future.result()
+                responses[name] = output
+
+        # Delegate best-response selection to Subconscious
+        if self.memory:
+            from willow.subconscious import Subconscious
+            sub = Subconscious(self.memory, dream_interval=0)
+            best = sub.evaluate_responses(responses)
+            return best
+        else:
+            # Fallback selection if no memory manager
+            best_provider, best_resp = None, ""
+            for prov, resp in responses.items():
+                if resp.startswith("[FALLBACK ERROR]"):
+                    continue
+                if len(resp) > len(best_resp):
+                    best_resp = resp
+                    best_provider = prov
+            chosen = best_resp or "[FALLBACK ERROR] All providers failed."
+            self.logger.info(f"Fallback picked provider: {best_provider}")
+            return chosen
     
     def _process_error_route(self, query: str, intent: IntentLevel) -> str:
         """
@@ -433,7 +472,8 @@ class RAGRouter:
             "average_response_time": 0.0,
             "success_rate": 0.0,
             "rag_available": self.qa_chain is not None,
-            "vector_store_size": len(self.vector_store.index_to_docstore_id) if self.vector_store else 0
+            "vector_store_size": len(self.vector_store.index_to_docstore_id) if self.vector_store else 0,
+            "providers_count": len(self.providers)
         }
     
     def update_config(self, new_config: Dict[str, Any]) -> None:

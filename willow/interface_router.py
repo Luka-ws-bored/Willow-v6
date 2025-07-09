@@ -17,7 +17,7 @@ def _launch_cli_mode(config, memory):
     logger.info("Launching CLI mode")
     # Load plugins and RAG
     plugins = load_plugins(config.get('config_path', 'config.yaml'))
-    rag = RAGRouter(config)
+    rag = RAGRouter(config, memory)
     intent_router = IntentRouter(plugins, rag, memory)
     
     # Import Subconscious for dream command

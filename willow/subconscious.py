@@ -1,6 +1,7 @@
 import logging
 import threading
 import time
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -31,4 +32,21 @@ class Subconscious:
         recent = self.memory.get_recent(10)
         summary = "; ".join([str(entry) for entry in recent])
         self.memory.add_entry({"event": "dream_manual", "summary": summary})
-        return f"Dream summary: {summary}" 
+        return f"Dream summary: {summary}"
+
+    # New: evaluate multiple provider responses
+    def evaluate_responses(self, responses: Dict[str, str]) -> str:
+        """
+        Choose the best response among multiple providers.
+        Current heuristic: longest non-error response.
+        """
+        best_provider, best_resp = None, ""
+        for prov, resp in responses.items():
+            if resp.startswith("[FALLBACK ERROR]"):
+                continue
+            if len(resp) > len(best_resp):
+                best_resp = resp
+                best_provider = prov
+        chosen = best_resp or "[FALLBACK ERROR] All providers failed."
+        logger.info(f"Subconscious picked provider: {best_provider}")
+        return chosen 

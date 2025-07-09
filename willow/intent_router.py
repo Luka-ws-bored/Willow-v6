@@ -57,7 +57,7 @@ class IntentRouter:
         
         # Detect intent
         intent = self._detect_intent(query)
-        logger.info(f"🔍 Detected intent: {intent}")
+        logger.info(f"Detected intent: {intent}")
         self.memory.add_entry({
             "type": "intent",
             "input": query,
