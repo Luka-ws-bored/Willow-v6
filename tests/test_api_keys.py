@@ -21,12 +21,14 @@ def test_api_keys():
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     gemini_key = os.environ.get("GEMINI_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
+    huggingface_key = os.environ.get("HUGGINGFACE_API_KEY")
     
     print(f"OpenRouter API Key: {'✓ Set' if openrouter_key else '✗ Not set'}")
     print(f"Gemini API Key: {'✓ Set' if gemini_key else '✗ Not set'}")
     print(f"OpenAI API Key: {'✓ Set' if openai_key else '✗ Not set'}")
+    print(f"Hugging Face API Key: {'✓ Set' if huggingface_key else '✗ Not set'}")
     
-    if not any([openrouter_key, gemini_key, openai_key]):
+    if not any([openrouter_key, gemini_key, openai_key, huggingface_key]):
         print("Error: No API keys found!")
         return False
     

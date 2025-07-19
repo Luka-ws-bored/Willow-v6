@@ -236,7 +236,9 @@ class TestRAGRouterIntegration(unittest.TestCase):
         """Test complete routing pipeline."""
         # Setup mocks
         mock_embeddings.return_value = MagicMock()
-        mock_chat_openai.return_value = MagicMock()
+        mock_llm = MagicMock()
+        mock_llm.predict.return_value = "Mocked answer"
+        mock_chat_openai.return_value = mock_llm
         mock_faiss.from_documents.return_value = MagicMock()
         mock_faiss.from_texts.return_value = MagicMock()
         
@@ -288,7 +290,9 @@ class TestRAGRouterEdgeCases(unittest.TestCase):
     def setUp(self, mock_chat_openai, mock_embeddings):
         """Set up edge case test fixtures."""
         mock_embeddings.return_value = MagicMock()
-        mock_chat_openai.return_value = MagicMock()
+        mock_llm = MagicMock()
+        mock_llm.predict.return_value = "Mocked response"
+        mock_chat_openai.return_value = mock_llm
         
         with patch('willow.rag_router.FAISS') as mock_faiss:
             mock_faiss.from_texts.return_value = MagicMock()

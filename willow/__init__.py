@@ -14,7 +14,7 @@ __description__ = "AI Automation Framework with Dynamic Plugin Loading"
 def validate_environment():
     """Validate that required environment variables are set."""
     required_keys = []
-    optional_keys = ["OPENROUTER_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY"]
+    optional_keys = ["OPENROUTER_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "HUGGINGFACE_API_KEY"]
     
     missing_required = [key for key in required_keys if not os.environ.get(key)]
     if missing_required:
@@ -22,7 +22,7 @@ def validate_environment():
     
     available_keys = [key for key in optional_keys if os.environ.get(key)]
     if not available_keys:
-        print("Warning: No API keys found. Set OPENROUTER_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY for full functionality.")
+        print("Warning: No API keys found. Set OPENROUTER_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or HUGGINGFACE_API_KEY for full functionality.")
     else:
         print(f"Available API providers: {available_keys}")
 

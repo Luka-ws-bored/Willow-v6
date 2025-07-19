@@ -26,6 +26,8 @@ from langchain_openai import OpenAIEmbeddings
 from openai import OpenAI
 # Import Gemini provider
 from willow.providers.gemini_provider import GeminiProvider
+# Import Hugging Face provider
+from willow.providers.huggingface_provider import HuggingFaceProvider
 
 
 class RouteType(Enum):
@@ -107,6 +109,16 @@ class RAGRouter:
                 self.logger.info("Gemini provider initialized")
             except Exception as e:
                 self.logger.error(f"Failed to initialize Gemini provider: {e}")
+        
+        # Add Hugging Face provider
+        huggingface_key = os.environ.get("HUGGINGFACE_API_KEY") or self.config.get("huggingface_api_key")
+        if huggingface_key:
+            try:
+                huggingface_provider = HuggingFaceProvider(api_key=huggingface_key)
+                self.providers.append(("huggingface", huggingface_provider))
+                self.logger.info("Hugging Face provider initialized")
+            except Exception as e:
+                self.logger.error(f"Failed to initialize Hugging Face provider: {e}")
         
         # Initialize RAG pipeline
         self._initialize_rag_pipeline()
@@ -405,6 +417,14 @@ class RAGRouter:
             try:
                 if name == "gemini":
                     # Handle Gemini provider
+                    response = client.chat_completion(
+                        messages=[{"role": "user", "content": query}],
+                        max_tokens=1000,
+                        temperature=0.7
+                    )
+                    return name, response
+                elif name == "huggingface":
+                    # Handle Hugging Face provider
                     response = client.chat_completion(
                         messages=[{"role": "user", "content": query}],
                         max_tokens=1000,

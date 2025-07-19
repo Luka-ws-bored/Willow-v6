@@ -79,9 +79,16 @@ active_plugins:
             with patch('builtins.open', mock_open(read_data=config_yaml)):
                 with patch('yaml.safe_load', return_value=self.cli_config):
                     with patch('willow.interface_router._launch_cli_mode') as mock_cli:
-                        launch_interface('test_config.yaml')
-                        
-                        mock_cli.assert_called_once_with(self.cli_config)
+                        with patch('logging.Logger.info') as mock_logger:
+                            launch_interface('test_config.yaml')
+                            
+                            mock_cli.assert_called_once()
+                            # Check that it was called with config and memory
+                            args, kwargs = mock_cli.call_args
+                            self.assertEqual(args[0], self.cli_config)
+                            # memory can be None or MemoryManager
+                            self.assertTrue(args[1] is None or hasattr(args[1], 'memory_file'))
+                            mock_logger.assert_any_call("Launching interface in CLI mode")
     
     def test_launch_interface_gui_mode(self):
         """Test launching interface in GUI mode."""
@@ -96,9 +103,16 @@ active_plugins:
             with patch('builtins.open', mock_open(read_data=config_yaml)):
                 with patch('yaml.safe_load', return_value=self.gui_config):
                     with patch('willow.interface_router._launch_gui_mode') as mock_gui:
-                        launch_interface('test_config.yaml')
-                        
-                        mock_gui.assert_called_once_with(self.gui_config)
+                        with patch('logging.Logger.info') as mock_logger:
+                            launch_interface('test_config.yaml')
+                            
+                            mock_gui.assert_called_once()
+                            # Check that it was called with config and memory
+                            args, kwargs = mock_gui.call_args
+                            self.assertEqual(args[0], self.gui_config)
+                            # memory can be None or MemoryManager
+                            self.assertTrue(args[1] is None or hasattr(args[1], 'memory_file'))
+                            mock_logger.assert_any_call("Launching interface in GUI mode")
     
     def test_launch_interface_invalid_mode(self):
         """Test launching interface with invalid mode raises error."""
@@ -137,9 +151,16 @@ active_plugins:
             with patch('builtins.open', mock_open(read_data=config_yaml)):
                 with patch('yaml.safe_load', return_value=config_without_mode):
                     with patch('willow.interface_router._launch_cli_mode') as mock_cli:
-                        launch_interface('test_config.yaml')
-                        
-                        mock_cli.assert_called_once_with(config_without_mode)
+                        with patch('logging.Logger.info') as mock_logger:
+                            launch_interface('test_config.yaml')
+                            
+                            mock_cli.assert_called_once()
+                            # Check that it was called with config and memory
+                            args, kwargs = mock_cli.call_args
+                            self.assertEqual(args[0], config_without_mode)
+                            # memory can be None or MemoryManager
+                            self.assertTrue(args[1] is None or hasattr(args[1], 'memory_file'))
+                            mock_logger.assert_any_call("Launching interface in CLI mode")
     
     def test_launch_cli_mode(self):
         """Test CLI mode launch functionality."""
@@ -150,11 +171,11 @@ active_plugins:
             }
             mock_load_plugins.return_value = mock_plugins
             
-            # Capture print output
-            with patch('builtins.print') as mock_print:
+            # Capture logging output
+            with patch('logging.Logger.info') as mock_logger:
                 _launch_cli_mode(self.cli_config)
                 
-                # Verify expected print calls
+                # Verify expected logging calls
                 expected_calls = [
                     unittest.mock.call("🌿 Launching CLI..."),
                     unittest.mock.call("Loading plugins..."),
@@ -165,32 +186,32 @@ active_plugins:
                     unittest.mock.call("Plugin loading system ready for use.")
                 ]
                 
-                mock_print.assert_has_calls(expected_calls)
+                mock_logger.assert_has_calls(expected_calls)
     
     def test_launch_cli_mode_no_plugins(self):
         """Test CLI mode launch with no plugins loaded."""
         with patch('willow.interface_router.load_plugins') as mock_load_plugins:
             mock_load_plugins.return_value = {}
             
-            with patch('builtins.print') as mock_print:
+            with patch('logging.Logger.info') as mock_logger:
                 _launch_cli_mode(self.cli_config)
                 
                 # Verify "No plugins loaded" message
-                mock_print.assert_any_call("No plugins loaded")
+                mock_logger.assert_any_call("No plugins loaded")
     
     def test_launch_gui_mode(self):
         """Test GUI mode launch functionality."""
-        with patch('builtins.print') as mock_print:
+        with patch('logging.Logger.info') as mock_logger:
             _launch_gui_mode(self.gui_config)
             
-            # Verify expected print calls
+            # Verify expected logging calls
             expected_calls = [
                 unittest.mock.call("🌿 Launching GUI..."),
                 unittest.mock.call("GUI mode is not yet implemented in v6.0"),
                 unittest.mock.call("Please use 'cli' mode or wait for v6.1 GUI implementation")
             ]
             
-            mock_print.assert_has_calls(expected_calls)
+            mock_logger.assert_has_calls(expected_calls)
 
 
 class TestInterfaceRouterIntegration(unittest.TestCase):
@@ -264,9 +285,16 @@ active_plugins:
             with patch('builtins.open', mock_open(read_data=config_yaml)):
                 with patch('yaml.safe_load', return_value=config):
                     with patch('willow.interface_router._launch_gui_mode') as mock_gui:
-                        launch_interface('test_config.yaml')
-                        
-                        mock_gui.assert_called_once_with(config)
+                        with patch('logging.Logger.info') as mock_logger:
+                            launch_interface('test_config.yaml')
+                            
+                            mock_gui.assert_called_once()
+                            # Check that it was called with config and memory
+                            args, kwargs = mock_gui.call_args
+                            self.assertEqual(args[0], config)
+                            # memory can be None or MemoryManager
+                            self.assertTrue(args[1] is None or hasattr(args[1], 'memory_file'))
+                            mock_logger.assert_any_call("Launching interface in GUI mode")
     
     def test_launch_interface_malformed_yaml(self):
         """Test handling of malformed YAML configuration."""
