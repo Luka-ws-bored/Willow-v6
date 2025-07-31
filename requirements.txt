@@ -11,3 +11,8 @@ langchain-community
 faiss-cpu
 tiktoken
 openrouter
+openai
+trafilatura
+python-dotenv
+requests
+streamlit
