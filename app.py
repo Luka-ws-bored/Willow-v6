@@ -5,12 +5,20 @@ import json
 import requests
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
 
 # Add willow to path
 sys.path.insert(0, str(Path(__file__).parent))
+
+# Import database service
+try:
+    from database import db_service, ChatSession, ChatMessage
+except ImportError as e:
+    st.error(f"Failed to import database service: {e}")
+    st.stop()
 
 class LLMProviders:
     """Integrated LLM providers for Willow v6"""
@@ -116,15 +124,36 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize session state
+# Initialize session state with database integration
+if 'session_id' not in st.session_state:
+    # Create new chat session in database
+    st.session_state.session_id = db_service.create_chat_session(
+        provider="openrouter",
+        plugins=["color_mood_mapper", "bug_buster", "sql_sorcerer", "prompt_checker"]
+    )
+
 if 'messages' not in st.session_state:
-    st.session_state.messages = []
+    # Load messages from database
+    db_messages = db_service.get_session_messages(st.session_state.session_id)
+    st.session_state.messages = [
+        {"role": msg.role, "content": msg.content, "metadata": msg.message_metadata}
+        for msg in db_messages
+    ]
+
 if 'provider' not in st.session_state:
-    st.session_state.provider = "openrouter"
+    # Load provider from database or use default
+    session = db_service.get_chat_session(st.session_state.session_id)
+    st.session_state.provider = session.provider if session else "openrouter"
+
 if 'plugins' not in st.session_state:
-    st.session_state.plugins = ["color_mood_mapper", "bug_buster", "sql_sorcerer", "prompt_checker"]
+    # Load plugins from database or use default
+    session = db_service.get_chat_session(st.session_state.session_id)
+    st.session_state.plugins = session.active_plugins if session else ["color_mood_mapper", "bug_buster", "sql_sorcerer", "prompt_checker"]
+
 if 'uploaded_docs' not in st.session_state:
-    st.session_state.uploaded_docs = []
+    # Load uploaded documents from database
+    db_docs = db_service.get_session_documents(st.session_state.session_id)
+    st.session_state.uploaded_docs = [doc.filename for doc in db_docs]
 
 # Main interface
 st.title("🌿 Willow v6 Chat Interface")
@@ -137,7 +166,12 @@ with st.sidebar:
     # Provider selection
     st.subheader("🔧 LLM Provider")
     providers = ["openrouter", "ollama", "gemini"]
-    st.session_state.provider = st.selectbox("Select Provider", providers)
+    selected_provider = st.selectbox("Select Provider", providers, index=providers.index(st.session_state.provider) if st.session_state.provider in providers else 0)
+    
+    # Update provider in database if changed
+    if selected_provider != st.session_state.provider:
+        st.session_state.provider = selected_provider
+        db_service.update_chat_session(st.session_state.session_id, provider=selected_provider)
     
     # API Keys
     st.subheader("🔑 API Keys")
@@ -197,7 +231,10 @@ with st.sidebar:
         ):
             selected_plugins.append(plugin)
     
-    st.session_state.plugins = selected_plugins
+    # Update plugins in database if changed
+    if selected_plugins != st.session_state.plugins:
+        st.session_state.plugins = selected_plugins
+        db_service.update_chat_session(st.session_state.session_id, active_plugins=selected_plugins)
     
     # Document upload
     st.subheader("📚 Documents")
@@ -211,11 +248,29 @@ with st.sidebar:
         docs_dir = Path("uploaded_docs")
         docs_dir.mkdir(exist_ok=True)
         
+        new_files = []
         for file in uploaded_files:
-            (docs_dir / file.name).write_bytes(file.getbuffer())
+            file_path = docs_dir / file.name
+            if not file_path.exists():  # Only process new files
+                file_path.write_bytes(file.getbuffer())
+                
+                # Save to database
+                content_preview = file.getvalue().decode('utf-8', errors='ignore')[:500] if file.type.startswith('text/') else None
+                db_service.save_uploaded_document(
+                    session_id=st.session_state.session_id,
+                    filename=file.name,
+                    file_path=str(file_path),
+                    content_preview=content_preview,
+                    file_size=file.size,
+                    content_type=file.type
+                )
+                new_files.append(file.name)
         
-        st.success(f"Uploaded {len(uploaded_files)} documents")
-        st.session_state.uploaded_docs = [f.name for f in uploaded_files]
+        if new_files:
+            st.success(f"Uploaded {len(new_files)} new documents")
+            # Refresh uploaded docs from database
+            db_docs = db_service.get_session_documents(st.session_state.session_id)
+            st.session_state.uploaded_docs = [doc.filename for doc in db_docs]
     
     if st.session_state.uploaded_docs:
         st.write("**Uploaded:**")
@@ -225,7 +280,10 @@ with st.sidebar:
     # Actions
     st.subheader("⚡ Actions")
     if st.button("Clear Chat"):
+        # Clear from database and session state
+        db_service.clear_session_messages(st.session_state.session_id)
         st.session_state.messages = []
+        st.success("Chat cleared!")
         st.rerun()
     
     if st.button("Test Connection"):
@@ -240,6 +298,55 @@ with st.sidebar:
             st.error("Connection failed")
         else:
             st.success("Connection works!")
+    
+    # Database statistics
+    st.subheader("📊 Database Stats")
+    try:
+        db_stats = db_service.get_database_stats()
+        st.write(f"**Total Sessions:** {db_stats['total_sessions']}")
+        st.write(f"**Active Sessions:** {db_stats['active_sessions']}")
+        st.write(f"**Total Messages:** {db_stats['total_messages']}")
+        st.write(f"**Documents:** {db_stats['total_documents']}")
+        
+        # Session message stats
+        session_stats = db_service.get_message_stats(st.session_state.session_id)
+        st.write(f"**This Session:** {session_stats['total_messages']} messages")
+    except Exception as e:
+        st.error(f"Database error: {e}")
+    
+    # Session management
+    st.subheader("📝 Session Management")
+    if st.button("New Chat Session"):
+        # Create new session
+        new_session_id = db_service.create_chat_session(
+            provider=st.session_state.provider,
+            plugins=st.session_state.plugins
+        )
+        st.session_state.session_id = new_session_id
+        st.session_state.messages = []
+        st.success("New chat session created!")
+        st.rerun()
+    
+    # Recent sessions
+    try:
+        recent_sessions = db_service.get_recent_sessions(5)
+        if recent_sessions:
+            st.write("**Recent Sessions:**")
+            for session in recent_sessions:
+                session_name = f"Session ({session.provider}) - {session.updated_at.strftime('%m/%d %H:%M')}"
+                if st.button(session_name, key=f"session_{session.id}"):
+                    st.session_state.session_id = session.id
+                    # Load session data
+                    db_messages = db_service.get_session_messages(session.id)
+                    st.session_state.messages = [
+                        {"role": msg.role, "content": msg.content, "metadata": msg.message_metadata}
+                        for msg in db_messages
+                    ]
+                    st.session_state.provider = session.provider
+                    st.session_state.plugins = session.active_plugins
+                    st.rerun()
+    except Exception as e:
+        st.error(f"Error loading sessions: {e}")
 
 # Stats
 col1, col2, col3 = st.columns(3)
@@ -262,8 +369,19 @@ for message in st.session_state.messages:
 
 # Chat input
 if prompt := st.chat_input("Message Willow..."):
-    # Add user message
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    # Save user message to database
+    user_metadata = {"provider": st.session_state.provider, "timestamp": datetime.now().isoformat()}
+    db_service.save_message(
+        session_id=st.session_state.session_id,
+        role="user",
+        content=prompt,
+        message_metadata=user_metadata,
+        provider=st.session_state.provider,
+        plugins=st.session_state.plugins
+    )
+    
+    # Add user message to session state
+    st.session_state.messages.append({"role": "user", "content": prompt, "metadata": user_metadata})
     
     with st.chat_message("user"):
         st.write(prompt)
@@ -289,7 +407,25 @@ if prompt := st.chat_input("Message Willow..."):
                 response = LLMProviders.gemini(enhanced_prompt)
             
             st.write(response)
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            # Save assistant message to database
+            assistant_metadata = {
+                "provider": st.session_state.provider,
+                "plugins_used": st.session_state.plugins,
+                "enhanced_prompt_used": enhanced_prompt != prompt,
+                "timestamp": datetime.now().isoformat()
+            }
+            db_service.save_message(
+                session_id=st.session_state.session_id,
+                role="assistant",
+                content=response,
+                message_metadata=assistant_metadata,
+                provider=st.session_state.provider,
+                plugins=st.session_state.plugins
+            )
+            
+            # Add to session state
+            st.session_state.messages.append({"role": "assistant", "content": response, "metadata": assistant_metadata})
 
 # Footer
 st.divider()
@@ -297,14 +433,34 @@ st.markdown("*Powered by Willow v6 Framework*")
 
 # Export functionality
 if st.session_state.messages:
-    chat_data = {
-        "messages": st.session_state.messages,
-        "provider": st.session_state.provider,
-        "plugins": st.session_state.plugins
-    }
-    st.download_button(
-        "📥 Export Chat",
-        json.dumps(chat_data, indent=2),
-        "willow_chat.json",
-        "application/json"
-    )
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Export session data from database
+        try:
+            session_data = db_service.export_session_data(st.session_state.session_id)
+            st.download_button(
+                "📥 Export Full Session",
+                json.dumps(session_data, indent=2),
+                f"willow_session_{st.session_state.session_id[:8]}.json",
+                "application/json",
+                help="Export complete session data including metadata"
+            )
+        except Exception as e:
+            st.error(f"Export error: {e}")
+    
+    with col2:
+        # Simple chat export
+        simple_chat = {
+            "messages": st.session_state.messages,
+            "provider": st.session_state.provider,
+            "plugins": st.session_state.plugins,
+            "exported_at": datetime.now().isoformat()
+        }
+        st.download_button(
+            "📤 Export Chat Only",
+            json.dumps(simple_chat, indent=2),
+            "willow_chat.json",
+            "application/json",
+            help="Export just the chat messages"
+        )

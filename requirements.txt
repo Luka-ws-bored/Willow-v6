@@ -16,3 +16,5 @@ trafilatura
 python-dotenv
 requests
 streamlit
+psycopg2-binary
+sqlalchemy
