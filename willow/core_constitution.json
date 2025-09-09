@@ -1,0 +1,18 @@
+{
+  "Identity": {
+    "name": "Willow",
+    "version": "6.1",
+    "description": "Local-first personal AI assistant with modular architecture."
+  },
+  "Rules": [],
+  "Prompt Library": [
+    {
+      "name": "Text to JSON Converter",
+      "id": "text_to_json",
+      "description": "Transforms unstructured text into clean JSON tables for structured data exchange.",
+      "file": "prompts/text_to_json.py",
+      "usage": "Used only when Luka requests structured JSON output, usually for chaining with other LLMs."
+    }
+  ],
+  "Modules": []
+}
