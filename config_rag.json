@@ -1,0 +1,138 @@
+{
+  "rag_configuration": {
+    "description": "Configuration template for RAG (Retrieval-Augmented Generation) functionality in Willow v6",
+    "vector_database": {
+      "default_db_path": "./data/vector_db",
+      "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+      "embedding_cache_path": "./.cache/embeddings",
+      "chunk_size": 500,
+      "chunk_overlap": 50,
+      "max_chunks": 10000,
+      "similarity_threshold": 0.7
+    },
+    "retrieval": {
+      "default_top_k": 5,
+      "max_top_k": 20,
+      "enable_reranking": false,
+      "reranking_model": null,
+      "cache_retrieval_results": true,
+      "cache_ttl_seconds": 3600
+    },
+    "performance": {
+      "batch_size": 32,
+      "max_concurrent_queries": 4,
+      "timeout_seconds": 30,
+      "enable_async_processing": true,
+      "memory_limit_mb": 512
+    },
+    "retry_logic": {
+      "enable_retries": true,
+      "max_retries": 3,
+      "initial_delay_seconds": 1.0,
+      "backoff_multiplier": 2.0,
+      "max_delay_seconds": 30.0,
+      "retry_on_errors": [
+        "ConnectionError",
+        "TimeoutError",
+        "TemporaryUnavailable"
+      ]
+    },
+    "logging": {
+      "log_level": "INFO",
+      "log_rag_queries": true,
+      "log_retrieval_times": true,
+      "log_cache_hits": true,
+      "detailed_error_logging": true,
+      "performance_metrics": true
+    },
+    "security": {
+      "validate_input_paths": true,
+      "max_query_length": 10000,
+      "sanitize_documents": true,
+      "allowed_file_extensions": [".txt", ".md", ".json", ".csv"],
+      "max_document_size_mb": 10
+    },
+    "langchain_integration": {
+      "enable_langchain": true,
+      "use_faiss_vectorstore": true,
+      "text_splitter": "RecursiveCharacterTextSplitter",
+      "document_loaders": ["TextLoader", "DirectoryLoader"],
+      "enable_ragas_evaluation": false
+    },
+    "experimental": {
+      "enable_hybrid_search": false,
+      "enable_query_expansion": false,
+      "enable_result_fusion": false,
+      "use_gpu_acceleration": false,
+      "enable_streaming_responses": false
+    }
+  },
+  "dependencies": {
+    "required_for_basic_rag": ["faiss-cpu", "sentence-transformers"],
+    "required_for_full_langchain": [
+      "langchain",
+      "langchain-community",
+      "faiss-cpu",
+      "sentence-transformers"
+    ],
+    "optional_for_evaluation": ["datasets", "ragas"],
+    "gpu_acceleration": ["faiss-gpu"]
+  },
+  "usage_examples": {
+    "quick_setup": {
+      "description": "Minimal setup for testing RAG functionality",
+      "steps": [
+        "pip install faiss-cpu sentence-transformers",
+        "from src.rag_pipeline import create_rag_pipeline",
+        "rag = create_rag_pipeline()",
+        "rag.add_documents(['Sample document'], [{'id': 1}])",
+        "results = rag.query('Sample query')"
+      ]
+    },
+    "full_langchain_setup": {
+      "description": "Complete setup with LangChain integration",
+      "steps": [
+        "pip install langchain langchain-community faiss-cpu sentence-transformers",
+        "from src.main import async_query_rag",
+        "response = await async_query_rag('Query', docs_path='./docs')"
+      ]
+    },
+    "performance_monitoring": {
+      "description": "Enable detailed performance tracking",
+      "config_changes": {
+        "logging.performance_metrics": true,
+        "logging.log_retrieval_times": true,
+        "performance.enable_async_processing": true
+      }
+    }
+  },
+  "troubleshooting": {
+    "common_issues": {
+      "import_errors": {
+        "description": "Module import failures",
+        "solutions": [
+          "Install required dependencies: pip install faiss-cpu sentence-transformers",
+          "Check Python path includes src directory",
+          "Verify virtual environment activation"
+        ]
+      },
+      "memory_issues": {
+        "description": "High memory usage with large document sets",
+        "solutions": [
+          "Reduce chunk_size and batch_size",
+          "Set memory_limit_mb to appropriate value",
+          "Enable streaming for large queries"
+        ]
+      },
+      "slow_performance": {
+        "description": "Slow query response times",
+        "solutions": [
+          "Enable cache_retrieval_results",
+          "Use GPU acceleration if available",
+          "Reduce max_chunks for smaller databases",
+          "Enable async_processing for concurrent queries"
+        ]
+      }
+    }
+  }
+}

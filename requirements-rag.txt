@@ -1,0 +1,24 @@
+# RAG Pipeline Optional Dependencies for Willow v6
+# Install with: pip install -r requirements-rag.txt
+
+# Vector Database and Embeddings
+faiss-cpu>=1.7.4
+sentence-transformers>=2.2.2
+numpy>=1.24.0
+scipy>=1.10.0
+
+# LangChain for Advanced RAG
+langchain>=0.1.0
+langchain-community>=0.0.10
+
+# RAG Evaluation (RAGAS)
+datasets>=2.14.0
+ragas>=0.1.0
+
+# Additional ML dependencies
+torch>=1.13.0
+transformers>=4.21.0
+tokenizers>=0.13.0
+
+# Note: Install these only if you want to use RAG functionality
+# The system works without these dependencies with graceful degradation

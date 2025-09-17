@@ -1,0 +1,171 @@
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-in;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  background: var(--bg-secondary);
+  padding: 2rem 3rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  max-width: 300px;
+  text-align: center;
+}
+
+.loading-spinner {
+  position: relative;
+  width: 60px;
+  height: 60px;
+}
+
+.spinner-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  animation: spin 2s linear infinite;
+}
+
+.spinner-ring:nth-child(1) {
+  border-top-color: var(--primary-color);
+  animation-delay: -0.45s;
+}
+
+.spinner-ring:nth-child(2) {
+  border-right-color: var(--accent-color);
+  animation-delay: -0.3s;
+}
+
+.spinner-ring:nth-child(3) {
+  border-bottom-color: var(--success-color);
+  animation-delay: -0.15s;
+}
+
+.spinner-ring:nth-child(4) {
+  border-left-color: var(--warning-color);
+  animation-delay: 0s;
+}
+
+.loading-message {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Theme support */
+[data-theme="dark"] .loading-overlay {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="light"] .loading-overlay {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .loading-content {
+    padding: 1.5rem 2rem;
+    max-width: 250px;
+  }
+
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+  }
+
+  .loading-message {
+    font-size: 0.875rem;
+  }
+}
+
+/* Alternative spinner styles for different loading states */
+.loading-overlay.processing .spinner-ring {
+  border-width: 4px;
+}
+
+.loading-overlay.error .spinner-ring:nth-child(1) {
+  border-top-color: var(--error-color);
+}
+
+.loading-overlay.success .spinner-ring:nth-child(1) {
+  border-top-color: var(--success-color);
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .spinner-ring {
+    animation: none;
+  }
+
+  .loading-message {
+    animation: none;
+  }
+
+  .loading-overlay {
+    animation: none;
+  }
+}
+
+/* Focus management for accessibility */
+.loading-overlay {
+  /* Ensure the overlay can receive focus for screen readers */
+  outline: none;
+}
+
+/* Ensure proper contrast for accessibility */
+@media (prefers-contrast: high) {
+  .loading-content {
+    border: 2px solid var(--text-primary);
+  }
+
+  .spinner-ring {
+    border-width: 4px;
+  }
+}

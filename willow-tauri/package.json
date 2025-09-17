@@ -1,0 +1,36 @@
+{
+  "name": "willow-desktop",
+  "version": "6.0.0",
+  "description": "Willow v6 Desktop Application - Tauri Frontend",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "setup": "npm install && echo 'Frontend dependencies installed. To install Rust and Tauri CLI, run: npm run install-tauri'"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.4.0",
+    "vite": "^4.4.9"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^1.4.0"
+  },
+  "keywords": [
+    "ai",
+    "desktop",
+    "tauri",
+    "willow",
+    "rag",
+    "llm"
+  ],
+  "author": "Willow Development Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Luka-ws-bored/Willow-v6.git"
+  }
+}

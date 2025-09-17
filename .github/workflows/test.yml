@@ -1,0 +1,55 @@
+name: Willow Test Suite
+
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+    branches: ["main", "dev"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Run pre-commit (lint/format checks)
+        run: |
+          pre-commit run --all-files
+
+      - name: Prepare reports folder
+        run: |
+          mkdir -p reports
+
+      - name: Run tests with coverage and produce reports
+        run: |
+          # run pytest with junit xml and coverage; keep coverage artifacts in reports/
+          pytest -q --junitxml=reports/junit.xml --cov=src --cov-report=xml:reports/coverage.xml --cov-report=html:reports/coverage_html
+
+      - name: Upload coverage HTML artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: reports/coverage_html
+
+      - name: Upload junit xml artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-xml
+          path: reports/junit.xml
+
+      - name: Upload coverage xml to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: reports/coverage.xml

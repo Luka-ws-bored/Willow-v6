@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Willow Desktop v6.0.0</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Header -->
+      <header class="app-header">
+        <div class="header-content">
+          <h1>🌲 Willow Desktop</h1>
+          <span class="version">v6.0.0</span>
+        </div>
+        <div class="status-indicator" id="statusIndicator">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="status-text" id="statusText">Initializing...</span>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+          <nav class="nav-menu">
+            <button class="nav-item active" data-tab="chat" id="chatTab">
+              💬 Chat
+            </button>
+            <button class="nav-item" data-tab="rag" id="ragTab">
+              📚 RAG Search
+            </button>
+            <button class="nav-item" data-tab="settings" id="settingsTab">
+              ⚙️ Settings
+            </button>
+            <button class="nav-item" data-tab="status" id="statusTab">
+              📊 Status
+            </button>
+          </nav>
+
+          <div class="capabilities-panel">
+            <h3>🎯 Capabilities</h3>
+            <div class="capabilities-list" id="capabilitiesList">
+              <div class="capability-item">
+                <span class="capability-status">⏳</span>
+                <span>Loading...</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Content Area -->
+        <section class="content-area">
+          <!-- Chat Tab -->
+          <div class="tab-content active" id="chatContent">
+            <div class="chat-container">
+              <div class="chat-messages" id="chatMessages">
+                <div class="message system">
+                  <div class="message-content">
+                    <strong>Willow Desktop:</strong> Welcome! I'm ready to help
+                    you with AI-powered tasks. Ask me anything!
+                  </div>
+                  <div class="message-time" id="welcomeTime"></div>
+                </div>
+              </div>
+
+              <form class="chat-input-form" id="chatForm">
+                <div class="input-group">
+                  <textarea
+                    class="chat-input"
+                    id="chatInput"
+                    placeholder="Type your message here..."
+                    rows="3"
+                  ></textarea>
+                  <button type="submit" class="send-button" id="sendButton">
+                    Send 🚀
+                  </button>
+                </div>
+                <div class="input-options">
+                  <select class="model-select" id="modelSelect">
+                    <option value="">Auto-select model</option>
+                  </select>
+                  <label class="max-tokens-label">
+                    Max tokens:
+                    <input
+                      type="number"
+                      class="max-tokens-input"
+                      id="maxTokensInput"
+                      value="1000"
+                      min="10"
+                      max="4000"
+                    />
+                  </label>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- RAG Tab -->
+          <div class="tab-content" id="ragContent">
+            <div class="rag-container">
+              <h2>📚 RAG Document Search</h2>
+
+              <div class="rag-input-section">
+                <form class="rag-form" id="ragForm">
+                  <div class="form-group">
+                    <label for="ragQuery">Search Query:</label>
+                    <textarea
+                      id="ragQuery"
+                      class="rag-query-input"
+                      placeholder="Enter your question about the documents..."
+                      rows="3"
+                    ></textarea>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="ragDocuments"
+                      >Custom Documents (optional):</label
+                    >
+                    <textarea
+                      id="ragDocuments"
+                      class="rag-documents-input"
+                      placeholder="Paste documents here, one per line, or leave empty to use default knowledge base..."
+                      rows="5"
+                    ></textarea>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="ragTopK">Number of results:</label>
+                    <input
+                      type="number"
+                      id="ragTopK"
+                      class="rag-top-k-input"
+                      value="3"
+                      min="1"
+                      max="10"
+                    />
+                  </div>
+
+                  <button type="submit" class="rag-submit-button">
+                    Search Documents 🔍
+                  </button>
+                </form>
+              </div>
+
+              <div class="rag-results" id="ragResults">
+                <div class="placeholder-message">
+                  Enter a query above to search through documents using RAG
+                  technology.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Settings Tab -->
+          <div class="tab-content" id="settingsContent">
+            <div class="settings-container">
+              <h2>⚙️ Settings</h2>
+
+              <div class="settings-section">
+                <h3>🤖 Model Configuration</h3>
+                <div class="setting-group">
+                  <label for="defaultModel">Default LLM Model:</label>
+                  <select id="defaultModel" class="setting-select">
+                    <option value="">Auto-select</option>
+                  </select>
+                </div>
+
+                <div class="setting-group">
+                  <label for="defaultMaxTokens">Default Max Tokens:</label>
+                  <input
+                    type="number"
+                    id="defaultMaxTokens"
+                    class="setting-input"
+                    value="1000"
+                    min="10"
+                    max="4000"
+                  />
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <h3>📚 RAG Configuration</h3>
+                <div class="setting-group">
+                  <label for="defaultTopK">Default Top-K Results:</label>
+                  <input
+                    type="number"
+                    id="defaultTopK"
+                    class="setting-input"
+                    value="3"
+                    min="1"
+                    max="10"
+                  />
+                </div>
+
+                <div class="setting-group">
+                  <label for="ragDocsPath">Documents Path:</label>
+                  <input
+                    type="text"
+                    id="ragDocsPath"
+                    class="setting-input"
+                    value="docs/data/"
+                    readonly
+                  />
+                  <small>This is set in the main Willow configuration</small>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <h3>🎨 Interface</h3>
+                <div class="setting-group">
+                  <label for="themeSelect">Theme:</label>
+                  <select id="themeSelect" class="setting-select">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                  </select>
+                </div>
+              </div>
+
+              <button class="save-settings-button" id="saveSettingsButton">
+                Save Settings 💾
+              </button>
+            </div>
+          </div>
+
+          <!-- Status Tab -->
+          <div class="tab-content" id="statusContent">
+            <div class="status-container">
+              <h2>📊 System Status</h2>
+
+              <div class="status-section">
+                <h3>🌲 Willow Backend</h3>
+                <div class="status-grid" id="backendStatus">
+                  <div class="status-item">
+                    <span class="status-label">Backend Status:</span>
+                    <span class="status-value" id="backendStatusValue"
+                      >⏳ Checking...</span
+                    >
+                  </div>
+                  <div class="status-item">
+                    <span class="status-label">Version:</span>
+                    <span class="status-value" id="versionValue">-</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="status-section">
+                <h3>🎯 Available Features</h3>
+                <div class="features-grid" id="featuresGrid">
+                  <!-- Will be populated by JavaScript -->
+                </div>
+              </div>
+
+              <div class="status-section">
+                <h3>🤖 Available Models</h3>
+                <div class="models-list" id="modelsList">
+                  <!-- Will be populated by JavaScript -->
+                </div>
+              </div>
+
+              <div class="status-section">
+                <h3>📈 Performance Stats</h3>
+                <div class="performance-stats" id="performanceStats">
+                  <!-- Will be populated by JavaScript -->
+                </div>
+              </div>
+
+              <button class="refresh-status-button" id="refreshStatusButton">
+                Refresh Status 🔄
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Loading Overlay -->
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Processing...</div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

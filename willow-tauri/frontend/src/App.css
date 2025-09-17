@@ -1,0 +1,52 @@
+/* Willow v6 Desktop App Styles */
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.content-area {
+  flex: 1;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+/* Global loading state */
+.app-container.loading {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Focus styles for accessibility */
+.app-container :focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+.app-container * {
+  transition: color 0.2s ease, background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+
+  .content-area {
+    order: 1;
+  }
+}

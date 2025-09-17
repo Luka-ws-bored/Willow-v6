@@ -1,0 +1,28 @@
+[package]
+name = "willow-desktop"
+version = "6.0.0"
+description = "Willow v6 Desktop Application"
+authors = ["Willow Development Team"]
+license = "MIT"
+repository = "https://github.com/Luka-ws-bored/Willow-v6"
+default-run = "willow-desktop"
+edition = "2021"
+rust-version = "1.60"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "2.0", features = [] }
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+
+[features]
+# by default Tauri runs in production mode
+# when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
+default = ["custom-protocol"]
+# this feature is used used for production builds where `devPath` points to the filesystem
+# DO NOT remove this
+custom-protocol = ["tauri/custom-protocol"]

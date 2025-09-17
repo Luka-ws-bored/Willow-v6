@@ -1,13 +1,14 @@
-openai
-google-generativeai
-python-dotenv
-gTTS
-rich
-PyQt6
-PyYAML
-langchain
-langchain-openai
-langchain-community
-faiss-cpu
-tiktoken
-openrouter
+# Core dependencies
+psutil>=5.9.0
+rich>=13.0.0
+
+# RAG Pipeline Dependencies (optional)
+# Install with: pip install faiss-cpu sentence-transformers
+# langchain>=0.1.0
+# langchain-community>=0.0.10
+# faiss-cpu>=1.7.4
+# sentence-transformers>=2.2.2
+# datasets>=2.14.0
+# ragas>=0.1.0
+# numpy>=1.24.0
+# scipy>=1.10.0
