@@ -437,6 +437,56 @@ python test_vector_db_simple.py
 python demo_rag_integration.py
 ```
 
+## 🔄 n8n Integration
+
+Willow v6 includes a complete integration with n8n for automated document ingestion workflows.
+
+### Features
+
+- **Automated Document Ingestion**: Trigger document processing through n8n workflows
+- **Webhook Integration**: REST API endpoint for receiving documents from n8n
+- **Vector Database Storage**: Automatic storage of document embeddings
+- **Error Handling**: Comprehensive error reporting and logging
+
+### Setup
+
+1. Navigate to the n8n directory:
+   ```bash
+   cd devops/n8n
+   ```
+
+2. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your credentials
+   ```
+
+3. Start n8n:
+   ```bash
+   docker-compose up -d
+   ```
+
+4. Start Willow backend:
+   ```bash
+   python backend.py
+   ```
+
+5. Import the workflow in the n8n UI
+
+### Testing
+
+Test the integration with curl:
+```bash
+curl -X POST http://localhost:5678/webhook/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"document": "Test document for n8n integration"}'
+```
+
+For comprehensive testing, run:
+```bash
+python test_n8n_full_integration.py
+```
+
 ## 📊 Performance Features
 
 - **Caching**: LRU caches for models, embeddings, and validation

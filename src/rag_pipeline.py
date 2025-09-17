@@ -232,8 +232,8 @@ class RAGPipeline:
         """Retrieve relevant documents for a user query with caching.
         
         Args:
-            user_query: User's search query
-            top_k: Number of top results to return
+            user_query (str): User's search query
+            top_k (int): Number of top results to return
             
         Returns:
             List of dictionaries with 'content' and 'metadata' keys
@@ -282,8 +282,8 @@ class RAGPipeline:
         """Async version of query method with caching.
         
         Args:
-            user_query: User's search query
-            top_k: Number of top results to return
+            user_query (str): User's search query
+            top_k (int): Number of top results to return
             
         Returns:
             List of dictionaries with 'content' and 'metadata' keys
@@ -332,11 +332,11 @@ class RAGPipeline:
         """Format retrieved documents as context for LLM input.
         
         Args:
-            retrieved_docs: List of retrieved documents from query()
-            user_query: Original user query
+            retrieved_docs (List[Dict[str, Any]]): List of retrieved documents from query()
+            user_query (str): Original user query
             
         Returns:
-            Formatted context string for LLM
+            str: Formatted context string for LLM
         """
         if not retrieved_docs:
             return "No relevant documents found."
@@ -360,11 +360,11 @@ class RAGPipeline:
         """Perform RAG query and return both documents and formatted context with caching.
         
         Args:
-            user_query: User's search query
-            top_k: Number of top results to return
+            user_query (str): User's search query
+            top_k (int): Number of top results to return
             
         Returns:
-            Dictionary with 'documents', 'context', and 'query' keys
+            Dict[str, Any]: Dictionary with 'documents', 'context', and 'query' keys
         """
         # Check context cache first
         if self.cache_enabled and self._context_cache:
@@ -393,11 +393,11 @@ class RAGPipeline:
         """Async version of query_with_context with caching.
         
         Args:
-            user_query: User's search query
-            top_k: Number of top results to return
+            user_query (str): User's search query
+            top_k (int): Number of top results to return
             
         Returns:
-            Dictionary with 'documents', 'context', and 'query' keys
+            Dict[str, Any]: Dictionary with 'documents', 'context', and 'query' keys
         """
         # Check context cache first
         if self.cache_enabled and self._context_cache:
@@ -429,6 +429,29 @@ class RAGPipeline:
         if from_cache:
             self._cache_performance['total_cache_time_saved'] += max(0, 
                 self._cache_performance.get('avg_query_time_without_cache', 0.1) - query_time)
+        
+        # Update averages (keep last 100 queries for moving average)
+        if len(self._query_times) > 100:
+            self._query_times = self._query_times[-100:]
+        
+        cached_times = [t for i, t in enumerate(self._query_times) if i < len(self._query_times)//2]
+        uncached_times = [t for i, t in enumerate(self._query_times) if i >= len(self._query_times)//2]
+        
+        if cached_times:
+            self._cache_performance['avg_query_time_with_cache'] = sum(cached_times) / len(cached_times)
+        if uncached_times:
+            self._cache_performance['avg_query_time_without_cache'] = sum(uncached_times) / len(uncached_times)
+        
+        context = self.format_context_for_llm(retrieved_docs, user_query)
+        
+        return {
+            'documents': retrieved_docs,
+            'context': context,
+            'query': user_query,
+            'document_count': len(retrieved_docs)
+        }
+    
+    def get_stats(self                self._cache_performance.get('avg_query_time_without_cache', 0.1) - query_time)
         
         # Update averages (keep last 100 queries for moving average)
         if len(self._query_times) > 100:

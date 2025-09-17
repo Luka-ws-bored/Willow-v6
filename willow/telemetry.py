@@ -14,6 +14,8 @@ import uuid
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from dataclasses import dataclass, asdict
+import threading
+from collections import deque
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,15 @@ class Telemetry:
         
         # Collect system information
         self.system_info = self._collect_system_info()
+        
+        # Initialize batching system
+        self.batch_size = 10
+        self.flush_interval = 30  # seconds
+        self.event_queue = deque()
+        self.last_flush = time.time()
+        self.batch_lock = threading.Lock()
+        self.batch_thread = None
+        self.should_stop_batching = False
         
         logger.info(f"Telemetry initialized with endpoint: {telemetry_endpoint}")
     
@@ -122,11 +133,100 @@ class Telemetry:
             if immediate:
                 return self._send_single_event(event)
             else:
-                # TODO: Implement batching for non-immediate events
-                return self._send_single_event(event)
+                # Add to batch queue
+                return self._add_to_batch(event)
                 
         except Exception as e:
             logger.error(f"Failed to create telemetry event: {e}")
+            return False
+    
+    def _add_to_batch(self, event: TelemetryEvent) -> bool:
+        """
+        Add an event to the batch queue.
+        
+        Args:
+            event: Telemetry event to add to batch
+            
+        Returns:
+            True if added successfully, False otherwise
+        """
+        try:
+            with self.batch_lock:
+                self.event_queue.append(event)
+                
+                # Check if we should flush the batch
+                if (len(self.event_queue) >= self.batch_size or 
+                    time.time() - self.last_flush >= self.flush_interval):
+                    # Start batch flush in separate thread if not already running
+                    if self.batch_thread is None or not self.batch_thread.is_alive():
+                        self.batch_thread = threading.Thread(target=self._flush_batch, daemon=True)
+                        self.batch_thread.start()
+            
+            return True
+        except Exception as e:
+            logger.error(f"Failed to add event to batch: {e}")
+            return False
+    
+    def _flush_batch(self) -> bool:
+        """
+        Flush the batch queue by sending all events.
+        
+        Returns:
+            True if flushed successfully, False otherwise
+        """
+        try:
+            events_to_send = []
+            
+            # Get events from queue
+            with self.batch_lock:
+                while self.event_queue and len(events_to_send) < self.batch_size:
+                    events_to_send.append(self.event_queue.popleft())
+                self.last_flush = time.time()
+            
+            # Send batch if we have events
+            if events_to_send:
+                success = self._send_batch_events(events_to_send)
+                if not success:
+                    # If sending failed, put events back in queue
+                    with self.batch_lock:
+                        for event in reversed(events_to_send):
+                            self.event_queue.appendleft(event)
+                return success
+            
+            return True
+        except Exception as e:
+            logger.error(f"Failed to flush batch: {e}")
+            return False
+    
+    def _send_batch_events(self, events: List[TelemetryEvent]) -> bool:
+        """
+        Send a batch of telemetry events.
+        
+        Args:
+            events: List of telemetry events to send
+            
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        try:
+            # Convert events to payloads
+            payloads = [asdict(event) for event in events]
+            
+            response = self.session.post(
+                f"{self.telemetry_endpoint}/batch",
+                json={"events": payloads},
+                timeout=10
+            )
+            response.raise_for_status()
+            
+            logger.debug(f"Telemetry batch of {len(events)} events sent successfully.")
+            return True
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to send telemetry batch: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error sending telemetry batch: {e}")
             return False
     
     def _send_single_event(self, event: TelemetryEvent) -> bool:
@@ -318,7 +418,21 @@ class Telemetry:
             return {'status': 'error', 'error': str(e)}
     
     def close(self):
-        """Close the telemetry session."""
+        """Close the telemetry session and flush any remaining events."""
+        # Signal batching thread to stop
+        self.should_stop_batching = True
+        
+        # Flush any remaining events in the queue
+        if self.event_queue:
+            events_to_send = []
+            with self.batch_lock:
+                while self.event_queue:
+                    events_to_send.append(self.event_queue.popleft())
+            
+            if events_to_send:
+                self._send_batch_events(events_to_send)
+        
+        # Close the session
         self.session.close()
         logger.info("Telemetry session closed.")
 

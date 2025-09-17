@@ -9,6 +9,7 @@ Implements LangChain-powered RAG pipeline with document retrieval and generation
 
 import logging
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
@@ -69,6 +70,22 @@ class RAGRouter:
         self.config = config or {}
         self.memory = memory_manager
         
+        # Statistics tracking
+        self.stats_total_queries: int = 0
+        self.stats_successful_queries: int = 0
+        self.stats_failed_queries: int = 0
+        self.stats_avg_response_time: float = 0.0
+        self.stats_plugin_usage: Dict[str, int] = {}
+        self.stats_cache_hits: int = 0
+        self.stats_cache_misses: int = 0
+        self.stats_route_distribution: Dict[str, int] = {
+            "plugin": 0,
+            "rag": 0,
+            "fallback": 0,
+            "error": 0
+        }
+        self.response_times: List[float] = []
+        
         # RAG components
         self.vector_store = None
         self.qa_chain = None
@@ -127,11 +144,13 @@ class RAGRouter:
     
     def _initialize_rag_pipeline(self) -> None:
         """Initialize the RAG pipeline components."""
+        # Get RAG configuration
+        rag_config = self.config.get('rag', {})
+        model_name = rag_config.get('model', 'gpt-3.5-turbo')
+        
         try:
             # Get RAG configuration
-            rag_config = self.config.get('rag', {})
             docs_path = rag_config.get('docs_path', 'docs/data/')
-            model_name = rag_config.get('model', 'gpt-3.5-turbo')
             top_k = rag_config.get('k', 3)
             
             # Initialize embeddings with OpenRouter key if provided
@@ -273,9 +292,14 @@ class RAGRouter:
         """
         self.logger.info(f"Routing query: {query[:50]}...")
         
+        # Record start time for statistics
+        start_time = time.time()
+        
         # Handle empty or invalid queries
         if not query or not query.strip():
-            return self._handle_empty_query()
+            response = self._handle_empty_query()
+            self._record_query_stats(False, time.time() - start_time, "error")
+            return response
         
         try:
             # Step 1: Intent detection
@@ -287,12 +311,19 @@ class RAGRouter:
             # Step 3: Process through selected pipeline
             response = self._process_route(query, route_type, intent)
             
+            # Record successful query statistics
+            self._record_query_stats(True, time.time() - start_time, route_type.value)
+            
             self.logger.info(f"Query routed to {route_type.value}, response generated")
             return response
             
         except Exception as e:
             self.logger.error(f"Error routing query: {e}")
-            return self._handle_error(query, e)
+            response = self._handle_error(query, e)
+            
+            # Record failed query statistics
+            self._record_query_stats(False, time.time() - start_time, "error")
+            return response
     
     def _detect_intent(self, query: str) -> IntentLevel:
         """
@@ -369,9 +400,23 @@ class RAGRouter:
         Returns:
             Plugin response
         """
-        # TODO: Implement actual plugin routing
-        # For now, return a placeholder response
-        return f"[PLUGIN ROUTE] Query: {query} (plugin system not fully implemented yet)"
+        # Import the intent router to access plugin routing functionality
+        from willow.intent_router import IntentRouter
+        from willow.plugin_loader import load_plugins
+        from willow.memory import MemoryManager
+        
+        # Load plugins
+        plugins = load_plugins("config.yaml")
+        
+        # Create a simple memory manager for the router
+        memory = MemoryManager()
+        
+        # Create intent router with plugins
+        intent_router = IntentRouter(plugins, self, memory)
+        
+        # Route the query through the intent router to get plugin response
+        result = intent_router.route(query)
+        return result.get("output", f"[PLUGIN ROUTE] Query: {query}")
     
     def _process_rag_route(self, query: str, intent: IntentLevel) -> str:
         """
@@ -510,6 +555,41 @@ class RAGRouter:
         
         return f"Sorry, I encountered an error while processing your query. Please try again."
     
+    def _record_query_stats(self, success: bool, response_time: float, route_type: str, cache_hit: bool = False):
+        """
+        Record query statistics for performance monitoring.
+        
+        Args:
+            success: Whether the query was successful
+            response_time: Response time in seconds
+            route_type: Type of route used
+            cache_hit: Whether the result was from cache
+        """
+        # Update total queries
+        self.stats_total_queries += 1
+        
+        # Update success/failure counts
+        if success:
+            self.stats_successful_queries += 1
+        else:
+            self.stats_failed_queries += 1
+            
+        # Update response times
+        self.response_times.append(response_time)
+        if len(self.response_times) > 0:
+            self.stats_avg_response_time = sum(self.response_times) / len(self.response_times)
+        
+        # Update route distribution
+        if route_type in self.stats_route_distribution:
+            current_count = self.stats_route_distribution[route_type]
+            self.stats_route_distribution[route_type] = current_count + 1
+            
+        # Update cache statistics
+        if cache_hit:
+            self.stats_cache_hits += 1
+        else:
+            self.stats_cache_misses += 1
+    
     def get_route_stats(self) -> Dict[str, Any]:
         """
         Get statistics about routing decisions and performance.
@@ -517,15 +597,26 @@ class RAGRouter:
         Returns:
             Dictionary containing routing statistics
         """
-        # TODO: Implement actual statistics tracking
+        # Calculate success rate
+        success_rate = 0.0
+        if self.stats_total_queries > 0:
+            success_rate = self.stats_successful_queries / self.stats_total_queries
+            
+        # Calculate cache hit rate
+        cache_hit_rate = 0.0
+        total_cache_ops = self.stats_cache_hits + self.stats_cache_misses
+        if total_cache_ops > 0:
+            cache_hit_rate = self.stats_cache_hits / total_cache_ops
+        
         return {
-            "total_queries": 0,
-            "route_distribution": {},
-            "average_response_time": 0.0,
-            "success_rate": 0.0,
+            "total_queries": self.stats_total_queries,
+            "route_distribution": self.stats_route_distribution,
+            "average_response_time": self.stats_avg_response_time,
+            "success_rate": success_rate,
             "rag_available": self.qa_chain is not None,
             "vector_store_size": len(self.vector_store.index_to_docstore_id) if self.vector_store else 0,
-            "providers_count": len(self.providers)
+            "providers_count": len(self.providers),
+            "cache_hit_rate": cache_hit_rate
         }
     
     def update_config(self, new_config: Dict[str, Any]) -> None:
