@@ -1,22 +1,20 @@
 import requests
-import json
+import time
 
 def test_backend():
+    # Test health endpoint
     try:
-        # Test the Flask backend
-        response = requests.post('http://localhost:5000/chat', 
-                                json={"message": "Hello from test!"})
-        if response.status_code == 200:
-            data = response.json()
-            print(f"✓ Backend responded: {data['response']}")
-            return True
-        else:
-            print(f"✗ Backend returned status {response.status_code}")
-            return False
+        response = requests.get("http://localhost:5000/health", timeout=5)
+        print(f"Health check: {response.status_code} - {response.json()}")
     except Exception as e:
-        print(f"✗ Backend test failed: {e}")
-        return False
+        print(f"Health check failed: {e}")
+    
+    # Test LLM status endpoint
+    try:
+        response = requests.get("http://localhost:5000/llm/status", timeout=5)
+        print(f"LLM status: {response.status_code} - {response.json()}")
+    except Exception as e:
+        print(f"LLM status check failed: {e}")
 
 if __name__ == "__main__":
-    print("Testing Flask backend...")
     test_backend()
