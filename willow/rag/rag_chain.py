@@ -1,7 +1,7 @@
-from langchain import RetrievalQA
+from langchain.chains import RetrievalQA
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.document_loaders import TextLoader
-from langchain.vectorstores import FAISS
+from langchain_community.document_loaders import TextLoader
+from langchain_community.vectorstores import FAISS
 from .llm_wrapper import load_gemini_llm, load_gemini_embeddings
 
 # Load docs

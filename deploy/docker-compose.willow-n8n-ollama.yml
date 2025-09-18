@@ -1,0 +1,68 @@
+version: '3.8'
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=willow123
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    ports:
+      - "5678:5678"
+    networks:
+      - willownet
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    # If you already have Ollama installed on host, skip adding this service in compose
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      # Optionally change OLLAMA_DATA_DIR or other envs if needed
+    command: ["serve"]
+    # Expose the default Ollama API port so Willow can call it by service name 'ollama'
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/var/lib/ollama
+    networks:
+      - willownet
+
+  willow:
+    image: python:3.9-slim
+    container_name: willow
+    restart: unless-stopped
+    environment:
+      # IMPORTANT: replace or add the exact config your Willow backend expects
+      - OLLAMA_API_URL=http://ollama:11434
+      - OLLAMA_API_AUTH="" # leave empty for no auth; n8n docs say leave auth blank if none. See docs.
+      - VECTOR_DB_URL=
+      - LOG_LEVEL=debug
+      - NODE_ENV=production
+      - OLLAMA_MODEL=llama3.1:8b
+      # Add any other envs Willow needs. If your Willow expects a different var name, map accordingly.
+    ports:
+      - "5000:5000"
+    depends_on:
+      - ollama
+      - n8n
+    networks:
+      - willownet
+    volumes:
+      - ../:/app
+    working_dir: /app
+    command: bash -c "pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir -r requirements-dev.txt && pip install --no-cache-dir -r requirements-rag.txt && python backend.py"
+
+networks:
+  willownet:
+    driver: bridge
+
+volumes:
+  n8n_data:
+  ollama_data:

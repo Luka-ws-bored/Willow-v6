@@ -16,8 +16,8 @@ from contextlib import asynccontextmanager
 try:
     # LangChain imports
     from langchain.text_splitter import RecursiveCharacterTextSplitter
-    from langchain.document_loaders import TextLoader, DirectoryLoader
-    from langchain.vectorstores import FAISS
+    from langchain_community.document_loaders import TextLoader, DirectoryLoader
+    from langchain_community.vectorstores import FAISS
     from langchain.docstore.document import Document
     from langchain.schema.retriever import BaseRetriever
     from langchain.schema.vectorstore import VectorStore

@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import logging
 import re
+import os
+import requests
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for local development
@@ -91,5 +93,51 @@ def ingest_document():
         logger.error(f"Unexpected error in ingest endpoint: {str(e)}")
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint to verify the service is running."""
+    return jsonify({
+        "status": "healthy",
+        "service": "Willow Backend",
+        "version": "1.0"
+    })
+
+@app.route('/llm/status', methods=['GET'])
+def llm_status():
+    """Check the status of the LLM connection."""
+    ollama_url = os.getenv("OLLAMA_API_URL", "http://ollama:11434")
+    
+    try:
+        # Try to connect to the Ollama API
+        response = requests.get(f"{ollama_url}/api/tags", timeout=5)
+        if response.status_code == 200:
+            return jsonify({
+                "connected": True,
+                "backend": "ollama",
+                "url": ollama_url,
+                "models": response.json() if response.content else []
+            })
+        else:
+            return jsonify({
+                "connected": False,
+                "backend": "ollama",
+                "url": ollama_url,
+                "error": f"Status code: {response.status_code}"
+            })
+    except requests.exceptions.ConnectionError as e:
+        return jsonify({
+            "connected": False,
+            "backend": "ollama",
+            "url": ollama_url,
+            "error": f"Connection error: {str(e)}"
+        })
+    except Exception as e:
+        return jsonify({
+            "connected": False,
+            "backend": "ollama",
+            "url": ollama_url,
+            "error": f"Unexpected error: {str(e)}"
+        })
+
 if __name__ == "__main__":
-    app.run(port=5000)
+    app.run(host='0.0.0.0', port=5000)
