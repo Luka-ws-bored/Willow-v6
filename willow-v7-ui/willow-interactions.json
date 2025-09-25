@@ -1,0 +1,78 @@
+{
+  "interactions": [
+    {
+      "component": "NavBar",
+      "events": [
+        {
+          "name": "tabClick",
+          "description": "User clicks on a navigation tab",
+          "payload": {
+            "tab": "string"
+          }
+        },
+        {
+          "name": "search",
+          "description": "User submits a search query",
+          "payload": {
+            "term": "string"
+          }
+        }
+      ]
+    },
+    {
+      "component": "ModelSwitcher",
+      "events": [
+        {
+          "name": "modelSelect",
+          "description": "User selects a model from the dropdown",
+          "payload": {
+            "modelId": "string"
+          }
+        },
+        {
+          "name": "toggleChained",
+          "description": "User toggles chained mode",
+          "payload": {
+            "enabled": "boolean"
+          }
+        }
+      ]
+    },
+    {
+      "component": "ChatMessage",
+      "events": [
+        {
+          "name": "copy",
+          "description": "User copies message content to clipboard",
+          "payload": {
+            "content": "string"
+          }
+        },
+        {
+          "name": "toggleCollapse",
+          "description": "User toggles message collapse state",
+          "payload": {
+            "collapsed": "boolean"
+          }
+        }
+      ]
+    }
+  ],
+  "keyboardShortcuts": [
+    {
+      "key": "Ctrl+Enter",
+      "action": "submitChatMessage",
+      "description": "Submit the current chat message"
+    },
+    {
+      "key": "Ctrl+K",
+      "action": "focusSearch",
+      "description": "Focus the search input"
+    },
+    {
+      "key": "Escape",
+      "action": "closeModals",
+      "description": "Close any open modals or dropdowns"
+    }
+  ]
+}

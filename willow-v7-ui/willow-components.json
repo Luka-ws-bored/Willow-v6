@@ -1,0 +1,100 @@
+{
+  "components": [
+    {
+      "name": "NavBar",
+      "category": "organisms",
+      "props": {
+        "activeTab": {
+          "type": "string",
+          "required": true,
+          "description": "Currently active tab"
+        },
+        "onTabClick": {
+          "type": "function",
+          "required": true,
+          "description": "Callback when a tab is clicked"
+        },
+        "onSearch": {
+          "type": "function",
+          "required": true,
+          "description": "Callback when search is submitted"
+        }
+      },
+      "description": "Navigation bar with tab switching and search functionality"
+    },
+    {
+      "name": "ModelSwitcher",
+      "category": "organisms",
+      "props": {
+        "models": {
+          "type": "array",
+          "required": true,
+          "description": "List of available models"
+        },
+        "activeModelId": {
+          "type": "string",
+          "required": true,
+          "description": "ID of the currently active model"
+        },
+        "chainedMode": {
+          "type": "boolean",
+          "required": true,
+          "description": "Whether chained mode is enabled"
+        },
+        "onSelect": {
+          "type": "function",
+          "required": true,
+          "description": "Callback when a model is selected"
+        },
+        "onToggleChained": {
+          "type": "function",
+          "required": true,
+          "description": "Callback when chained mode is toggled"
+        }
+      },
+      "description": "Model selection dropdown with chained mode toggle"
+    },
+    {
+      "name": "ChatMessage",
+      "category": "molecules",
+      "props": {
+        "id": {
+          "type": "string",
+          "required": true,
+          "description": "Unique identifier for the message"
+        },
+        "author": {
+          "type": "string",
+          "required": true,
+          "description": "Author of the message (ai|user|system)"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "required": false,
+          "description": "URL for custom avatar image"
+        },
+        "content": {
+          "type": "string",
+          "required": true,
+          "description": "Message content (markdown)"
+        },
+        "timeISO": {
+          "type": "string",
+          "required": true,
+          "description": "Timestamp in ISO format"
+        },
+        "metadata": {
+          "type": "object",
+          "required": false,
+          "description": "Additional metadata (model, tokensUsed)"
+        },
+        "collapsed": {
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the message is collapsed"
+        }
+      },
+      "description": "Chat message component with markdown rendering and actions"
+    }
+  ]
+}
