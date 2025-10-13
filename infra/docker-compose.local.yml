@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma:/chroma/chroma.db
+    environment:
+      - CHROMA_SERVER_AUTHN_PROVIDER=chromadb.auth.token.TokenAuthServerProvider
+      - CHROMA_SERVER_AUTHN_CREDENTIALS=willow-token
+      - CHROMA_SERVER_AUTHN_CREDENTIALS_PROVIDER=chromadb.auth.token.TokenConfigServerAuthProvider
+
+volumes:
+  ollama:
+  chroma:
