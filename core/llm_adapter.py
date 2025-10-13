@@ -69,6 +69,37 @@ class OllamaAdapter:
                 "error": str(e)
             }
 
+    def chat(self, model: str = "llama2", messages: list = None) -> Dict[str, Any]:
+        """
+        Chat with Ollama using the chat endpoint.
+        
+        Args:
+            model: The model to use for chat (default: llama2)
+            messages: List of message dictionaries with role and content
+            
+        Returns:
+            Dictionary containing the chat response
+        """
+        if messages is None:
+            messages = []
+            
+        chat_endpoint = f"{self.base_url}/api/chat"
+        payload = {
+            "model": model,
+            "messages": messages,
+            "stream": False
+        }
+        
+        try:
+            response = requests.post(chat_endpoint, json=payload, timeout=30)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+
 
 # Example usage:
 # adapter = OllamaAdapter()

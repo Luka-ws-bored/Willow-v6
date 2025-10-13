@@ -1,0 +1,100 @@
+openapi: 3.0.3
+info:
+  title: Willow API
+  version: '1.0.0'
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/auth/token:
+    post:
+      summary: Exchange API key for short-lived token (local)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                api_key:
+                  type: string
+      responses:
+        '200':
+          description: token
+  /api/v1/workspaces:
+    get:
+      summary: List workspaces
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: list
+  /api/v1/workspaces/{id}/items:
+    get:
+      summary: List items in workspace
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string }
+      responses:
+        '200': { description: items }
+  /api/v1/items/{id}:
+    get:
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: item detail }
+    patch:
+      summary: Partial update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200': { description: updated item }
+  /api/v1/query:
+    post:
+      summary: Run a saved or adhoc query
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                q: { type: string }
+                limit: { type: integer }
+      responses:
+        '200': { description: query results }
+  /api/v1/chat:
+    post:
+      summary: Chat / LLM endpoint (calls local Ollama)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model: { type: string }
+                messages:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: llm response
+  /status:
+    get:
+      summary: Health check for backend and Ollama
+      responses:
+        '200': { description: ok }
