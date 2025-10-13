@@ -2,3 +2,5 @@ requests
 textual
 httpx
 pytest
+fastapi
+uvicorn
